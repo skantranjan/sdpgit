@@ -1,0 +1,351 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import Layout from '../components/Layout';
+import MultiSelect from '../components/MultiSelect';
+import Pagination from '../components/Pagination';
+
+// Interface for CM Code data structure with signoff status
+interface CmCode {
+  cm_code: string;
+  cm_description: string;
+  created_at: string;
+  updated_at: string;
+  company_name?: string | null;
+  signoff_by?: string | null;
+  signoff_date?: string | null;
+  signoff_status?: string | null;
+  document_url?: string | null;
+}
+
+// Interface for API response
+interface ApiResponse {
+  success: boolean;
+  count: number;
+  data: CmCode[];
+}
+
+// CmDashboard: Main dashboard page for the sustainability portal
+const CmDashboard: React.FC = () => {
+  const [cmCodes, setCmCodes] = useState<CmCode[]>([]);
+  const [signoffStatuses, setSignoffStatuses] = useState<string[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedCmCodes, setSelectedCmCodes] = useState<string[]>([]);
+  const [selectedSignoffStatuses, setSelectedSignoffStatuses] = useState<string[]>([]);
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [appliedFilters, setAppliedFilters] = useState<{
+    cmCodes: string[];
+    signoffStatuses: string[];
+  }>({ cmCodes: [], signoffStatuses: [] });
+
+  // Fetch CM codes from API
+  useEffect(() => {
+    const fetchCmCodes = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/cm-codes');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result: ApiResponse = await response.json();
+        
+        if (result.success) {
+          setCmCodes(result.data);
+          
+          // Extract unique signoff statuses for filter (if available)
+          const uniqueStatuses = Array.from(new Set(result.data.map(item => item.signoff_status).filter((status): status is string => Boolean(status))));
+          if (uniqueStatuses.length > 0) {
+            setSignoffStatuses(uniqueStatuses);
+          } else {
+            // Fallback to default statuses if not available in API
+            setSignoffStatuses(['approved', 'pending', 'rejected']);
+          }
+        } else {
+          throw new Error('API returned unsuccessful response');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch CM codes');
+        console.error('Error fetching CM codes:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCmCodes();
+  }, []);
+
+  // Handle search and reset
+  const handleSearch = () => {
+    console.log('Search with filters:', {
+      cmCodes: selectedCmCodes,
+      signoffStatuses: selectedSignoffStatuses
+    });
+    
+    // Apply the selected filters
+    setAppliedFilters({
+      cmCodes: selectedCmCodes,
+      signoffStatuses: selectedSignoffStatuses
+    });
+    
+    // Reset to first page when applying filters
+    setCurrentPage(1);
+    
+    // You can add your search logic here
+    // For example, filter the table data based on selected values
+    if (selectedCmCodes.length > 0) {
+      console.log(`Filtering by CM Codes: ${selectedCmCodes.join(', ')}`);
+    }
+    if (selectedSignoffStatuses.length > 0) {
+      console.log(`Filtering by Signoff Statuses: ${selectedSignoffStatuses.join(', ')}`);
+    }
+  };
+
+  const handleReset = () => {
+    // Clear all filters
+    setSelectedCmCodes([]);
+    setSelectedSignoffStatuses([]);
+    setAppliedFilters({ cmCodes: [], signoffStatuses: [] });
+    setCurrentPage(1);
+    
+    // Refresh data from API
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch('/cm-codes');
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const result: ApiResponse = await response.json();
+        
+        if (result.success) {
+          setCmCodes(result.data);
+          
+          // Extract unique signoff statuses for filter (if available)
+          const uniqueStatuses = Array.from(new Set(result.data.map(item => item.signoff_status).filter((status): status is string => Boolean(status))));
+          if (uniqueStatuses.length > 0) {
+            setSignoffStatuses(uniqueStatuses);
+          } else {
+            // Fallback to default statuses if not available in API
+            setSignoffStatuses(['approved', 'pending', 'rejected']);
+          }
+        } else {
+          throw new Error('API returned unsuccessful response');
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to fetch CM codes');
+        console.error('Error fetching CM codes:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  };
+
+  // Filter data based on applied filters
+  const filteredData = useMemo(() => {
+    let filtered = cmCodes;
+
+    // Filter by CM Code
+    if (appliedFilters.cmCodes.length > 0) {
+      filtered = filtered.filter(item => appliedFilters.cmCodes.includes(item.cm_code));
+    }
+
+    // Filter by Signoff Status
+    if (appliedFilters.signoffStatuses.length > 0) {
+      filtered = filtered.filter(item => 
+        item.signoff_status && appliedFilters.signoffStatuses.includes(item.signoff_status)
+      );
+    }
+
+    return filtered;
+  }, [cmCodes, appliedFilters]);
+
+  // Pagination logic
+  const totalRecords = filteredData.length;
+  const totalPages = Math.ceil(totalRecords / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const currentData = filteredData.slice(startIndex, endIndex);
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (newPageSize: number) => {
+    setPageSize(newPageSize);
+    setCurrentPage(1); // Reset to first page when changing page size
+  };
+
+  return (
+    <Layout>
+      {/* Main Content */}
+      <div className="mainInternalPages">
+        <div className="commonTitle">
+          <div className="icon">
+            <i className="ri-table-line"></i>
+          </div>
+          <h1>Contractor Manufacturer
+            
+          </h1>
+        </div>
+        <div className="row">
+          <div className="col-sm-12">
+            <div className="filters">
+              <ul>
+                <li>
+                  <div className="fBold">CM Code - Description</div>
+                  <MultiSelect
+                    options={cmCodes
+                      .sort((a, b) => a.cm_description.localeCompare(b.cm_description))
+                      .map(cmCode => ({
+                        value: cmCode.cm_code,
+                        label: `${cmCode.cm_code} - ${cmCode.cm_description}`
+                      }))
+                    }
+                    selectedValues={selectedCmCodes}
+                    onSelectionChange={setSelectedCmCodes}
+                    placeholder="Select CM Codes..."
+                    disabled={loading}
+                    loading={loading}
+                  />
+                  {loading && <small style={{color: '#666'}}>Loading CM codes...</small>}
+                  {error && <small style={{color: 'red'}}>Error: {error}</small>}
+                </li>
+                <li>
+                  <div className="fBold">Signoff Status</div>
+                  <MultiSelect
+                    options={signoffStatuses.map(status => ({
+                      value: status,
+                      label: status
+                    }))}
+                    selectedValues={selectedSignoffStatuses}
+                    onSelectionChange={setSelectedSignoffStatuses}
+                    placeholder="Select Signoff Status..."
+                    disabled={loading}
+                    loading={loading}
+                  />
+                  {loading && <small style={{color: '#666'}}>Loading signoff statuses...</small>}
+                  {error && <small style={{color: 'red'}}>Error: {error}</small>}
+                </li>
+                <li>
+                  <button 
+                    className="btnCommon btnGreen filterButtons" 
+                    onClick={handleSearch}
+                    disabled={loading}
+                  >
+                    <span>Search</span>
+                    <i className="ri-search-line"></i>
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    className="btnCommon btnBlack filterButtons" 
+                    onClick={handleReset}
+                    disabled={loading}
+                  >
+                    <span>Reset</span>
+                    <i className="ri-refresh-line"></i>
+                  </button>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div className="table-responsive tableCommon">
+          {loading ? (
+            <div style={{ textAlign: 'center', padding: '20px' }}>
+              <i className="ri-loader-4-line spinning" style={{ fontSize: '24px', color: '#666' }}></i>
+              <p>Loading table data...</p>
+            </div>
+          ) : error ? (
+            <div style={{ textAlign: 'center', padding: '20px', color: 'red' }}>
+              <p>Error loading table data: {error}</p>
+            </div>
+          ) : (
+            <table className="table table-striped">
+              <thead>
+                <tr>
+                  <th>CM Code</th>
+                  <th>CM Description</th>
+                  <th>Signoff Status</th>
+                  <th>Signoff By/Rejected By</th>
+                  <th>Signoff Date/ Rejected Date</th>
+                  <th>Add/View SKU</th>
+                </tr>
+              </thead>
+              <tbody>
+                {currentData.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '20px' }}>
+                      No data available
+                    </td>
+                  </tr>
+                ) : (
+                  currentData.map((row: CmCode, index: number) => (
+                    <tr key={index}>
+                      <td>{row.cm_code}</td>
+                      <td>{row.cm_description}</td>
+                      <td
+                        className={
+                          row.signoff_status === 'approved'
+                            ? 'status-cell approved'
+                            : row.signoff_status === 'rejected'
+                            ? 'status-cell rejected'
+                            : row.signoff_status === 'pending'
+                            ? 'status-cell pending'
+                            : ''
+                        }
+                      >
+                        {row.signoff_status === 'approved'
+                          ? 'Approved'
+                          : row.signoff_status === 'rejected'
+                          ? 'Rejected'
+                          : row.signoff_status === 'pending'
+                          ? 'Pending'
+                          : ''}
+                      </td>
+                      <td>
+                        {row.signoff_status === 'approved' ? row.signoff_by : '-'}
+                      </td>
+                      <td>
+                        {row.signoff_status === 'approved' ? row.signoff_date : '-'}
+                      </td>
+                      <td>
+                        <div className="action-btns">
+                          <a href="#" className="bg-Darkgrey text-black" tabIndex={0}>
+                            <i className="ri-eye-line"></i>
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+        
+        {/* Pagination */}
+        {!loading && !error && currentData.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            pageSize={pageSize}
+            totalRecords={totalRecords}
+            onPageChange={handlePageChange}
+            onPageSizeChange={handlePageSizeChange}
+          />
+        )}
+      </div>
+    </Layout>
+  );
+};
+
+export default CmDashboard; 
