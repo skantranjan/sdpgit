@@ -245,7 +245,7 @@ const CmDashboard: React.FC = () => {
                   <MultiSelect
                     options={signoffStatuses.map(status => ({
                       value: status,
-                      label: status
+                      label: status.charAt(0).toUpperCase() + status.slice(1)
                     }))}
                     selectedValues={selectedSignoffStatuses}
                     onSelectionChange={setSelectedSignoffStatuses}
