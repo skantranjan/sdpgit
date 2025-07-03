@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Layout from '../components/Layout';
 import MultiSelect from '../components/MultiSelect';
 import Pagination from '../components/Pagination';
+import * as XLSX from 'xlsx';
 
 // Interface for CM Code data structure with signoff status
 interface CmCode {
@@ -183,6 +184,27 @@ const CmDashboard: React.FC = () => {
     setCurrentPage(1); // Reset to first page when changing page size
   };
 
+  const handleExportToExcel = () => {
+    const exportData = currentData.map(row => ({
+      'CM Code': row.cm_code,
+      'CM Description': row.cm_description,
+      'Signoff Status': row.signoff_status === 'approved'
+        ? 'Approved'
+        : row.signoff_status === 'rejected'
+        ? 'Rejected'
+        : row.signoff_status === 'pending'
+        ? 'Pending'
+        : '',
+      'Signoff By': row.signoff_by || '',
+      'Signoff Date': row.signoff_date || ''
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Data');
+    XLSX.writeFile(workbook, 'cm-data.xlsx');
+  };
+
   return (
     <Layout>
       {/* Main Content */}
@@ -257,6 +279,22 @@ const CmDashboard: React.FC = () => {
               </ul>
             </div>
           </div>
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+          <button
+            onClick={handleExportToExcel}
+            style={{
+              background: '#30ea03',
+              color: '#000',
+              border: 'none',
+              borderRadius: 4,
+              padding: '8px 18px',
+              fontWeight: 'bold',
+              cursor: 'pointer'
+            }}
+          >
+            Export to Excel
+          </button>
         </div>
         <div className="table-responsive tableCommon">
           {loading ? (
