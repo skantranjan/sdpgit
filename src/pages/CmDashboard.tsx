@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import MultiSelect from '../components/MultiSelect';
 import Pagination from '../components/Pagination';
 import * as XLSX from 'xlsx';
+import { Link } from 'react-router-dom';
 
 // Interface for CM Code data structure with signoff status
 interface CmCode {
@@ -357,9 +358,14 @@ const CmDashboard: React.FC = () => {
                       </td>
                       <td>
                         <div className="action-btns">
-                          <a href="#" className="bg-Darkgrey text-black" tabIndex={0}>
+                          <Link
+                            to={`/cm/${row.cm_code}`}
+                            state={{ cmDescription: row.cm_description }}
+                            className="bg-Darkgrey text-black"
+                            tabIndex={0}
+                          >
                             <i className="ri-eye-line"></i>
-                          </a>
+                          </Link>
                         </div>
                       </td>
                     </tr>
