@@ -4,6 +4,7 @@ import MultiSelect from '../components/MultiSelect';
 import Pagination from '../components/Pagination';
 import * as XLSX from 'xlsx';
 import { Link } from 'react-router-dom';
+import Loader from '../components/Loader';
 
 // Interface for CM Code data structure with signoff status
 interface CmCode {
@@ -208,8 +209,8 @@ const CmDashboard: React.FC = () => {
 
   return (
     <Layout>
-      {/* Main Content */}
-      <div className="mainInternalPages">
+      {loading && <Loader />}
+      <div className="mainInternalPages" style={{ opacity: loading ? 0.5 : 1 }}>
         <div className="commonTitle">
           <div className="icon">
             <i className="ri-table-line"></i>
@@ -360,8 +361,21 @@ const CmDashboard: React.FC = () => {
                         <div className="action-btns">
                           <Link
                             to={`/cm/${row.cm_code}`}
-                            state={{ cmDescription: row.cm_description }}
-                            className="bg-Darkgrey text-black"
+                            state={{ cmDescription: row.cm_description, status: row.signoff_status }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#000',
+                              color: '#fff',
+                              borderRadius: 6,
+                              width: 36,
+                              height: 36,
+                              fontSize: 20,
+                              border: 'none',
+                              boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                              cursor: 'pointer',
+                            }}
                             tabIndex={0}
                           >
                             <i className="ri-eye-line"></i>

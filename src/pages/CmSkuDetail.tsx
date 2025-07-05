@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
+import Loader from '../components/Loader';
+import ConfirmModal from '../components/ConfirmModal';
 
 // Interface for SKU data structure
 interface SkuData {
@@ -23,11 +25,39 @@ interface ApiResponse {
   data: SkuData[];
 }
 
+// Add mock component data for table rows (replace with real API data as needed)
+const initialComponentRows = [
+  {
+    id: 1,
+    is_active: true,
+    material_type: 'Plastic',
+    component_reference: 'CR-001',
+    component_code: 'C-1001',
+    component_description: 'Bottle Cap',
+    valid_from: '2023',
+    valid_to: '2024',
+    material_group: 'Bg-001',
+    qtv: 10,
+    uom: 'PCS',
+    basic_uom: 'PCS',
+    packaging_type: 'Primary',
+    weight_type: 'Net',
+    unit_measure: 'g',
+    post_customer: 20,
+    post_industrial: 10,
+    text1: 'Text 1',
+    text2: 'Text 2',
+    text3: 'Text 3',
+    text4: 'Text 4',
+  },
+  // Add more rows as needed
+];
+
 const CmSkuDetail: React.FC = () => {
   const { cmCode } = useParams();
   const location = useLocation();
   const cmDescription = location.state?.cmDescription || '';
-  const status = 'Signed'; // placeholder, could be Approved, Rejected, Pending, etc.
+  const status = location.state?.status || '';
 
   // State for SKU data
   const [skuData, setSkuData] = useState<SkuData[]>([]);
@@ -40,6 +70,14 @@ const CmSkuDetail: React.FC = () => {
 
   // New state for open index
   const [openIndex, setOpenIndex] = useState<number | null>(0); // First panel open by default
+
+  // Add mock component data for table rows (replace with real API data as needed)
+  const [componentRows, setComponentRows] = useState(initialComponentRows);
+
+  // New state for confirm modal
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingSkuId, setPendingSkuId] = useState<number | null>(null);
+  const [pendingSkuStatus, setPendingSkuStatus] = useState<boolean>(false);
 
   // Fetch SKU details from API
   useEffect(() => {
@@ -92,9 +130,38 @@ const CmSkuDetail: React.FC = () => {
     }
   };
 
+  // Handler for table row/component is_active
+  const handleComponentIsActiveChange = (rowId: number, currentStatus: boolean) => {
+    setComponentRows(prev => prev.map(row => row.id === rowId ? { ...row, is_active: !currentStatus } : row));
+    // Optionally, send PATCH to backend for component/row status here
+  };
+
+  // Handler for header button click (show modal)
+  const handleHeaderStatusClick = (skuId: number, currentStatus: boolean) => {
+    setPendingSkuId(skuId);
+    setPendingSkuStatus(currentStatus);
+    setShowConfirm(true);
+  };
+
+  // Handler for modal confirm
+  const handleConfirmStatusChange = async () => {
+    if (pendingSkuId !== null) {
+      await handleIsActiveChange(pendingSkuId, pendingSkuStatus);
+    }
+    setShowConfirm(false);
+    setPendingSkuId(null);
+  };
+
+  // Handler for modal cancel
+  const handleCancelStatusChange = () => {
+    setShowConfirm(false);
+    setPendingSkuId(null);
+  };
+
   return (
     <Layout>
-      <div className="mainInternalPages">
+      {loading && <Loader />}
+      <div className="mainInternalPages" style={{ opacity: loading ? 0.5 : 1 }}>
         <div className="commonTitle">
           <div className="icon">
             <i className="ri-file-list-3-fill"></i>
@@ -110,7 +177,23 @@ const CmSkuDetail: React.FC = () => {
                 <li> | </li>
                 <li><strong> CM Description: </strong> {cmDescription}</li>
                 <li> | </li>
-                <li><strong> Status: </strong> <span className="signed"> {status}</span></li>
+                <li>
+                  <strong>Status: </strong>
+                  <span style={{
+                    display: 'inline-block',
+                    marginLeft: 8,
+                    padding: '2px 14px',
+                    borderRadius: 12,
+                    background: status === 'approved' || status === 'Active' ? '#30ea03' : status === 'pending' ? 'purple' : status === 'rejected' || status === 'Deactive' ? '#ccc' : '#ccc',
+                    color: status === 'approved' || status === 'Active' ? '#000' : '#fff',
+                    fontWeight: 600
+                  }}>
+                    {status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'N/A'}
+                  </span>
+                  <span style={{ marginLeft: 24 }}>
+                    <strong>Total SKUs: </strong> {skuData.length}
+                  </span>
+                </li>
               </ul>
             </div>
           </div>
@@ -205,16 +288,25 @@ const CmSkuDetail: React.FC = () => {
                       <strong>{sku.sku_code}</strong> || {sku.sku_description}
                     </span>
                     <span style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
-                      <span style={{ fontWeight: 400, marginRight: 6 }}>Is Active</span>
-                      <input
-                        type="checkbox"
-                        name={`is_active_${sku.id}`}
-                        value="Option 2"
-                        checked={sku.is_active}
-                        readOnly={false}
-                        onClick={e => e.stopPropagation()}
-                        onChange={() => handleIsActiveChange(sku.id, sku.is_active)}
-                      />
+                      <button
+                        style={{
+                          background: sku.is_active ? '#30ea03' : '#ccc',
+                          color: sku.is_active ? '#000' : '#fff',
+                          border: 'none',
+                          borderRadius: 4,
+                          fontWeight: 'bold',
+                          padding: '6px 18px',
+                          cursor: 'pointer',
+                          marginLeft: 8,
+                          minWidth: 90
+                        }}
+                        onClick={e => {
+                          e.stopPropagation();
+                          handleHeaderStatusClick(sku.id, sku.is_active);
+                        }}
+                      >
+                        {sku.is_active ? 'Active' : 'Deactive'}
+                      </button>
                     </span>
                   </div>
                   <div
@@ -296,49 +388,42 @@ const CmSkuDetail: React.FC = () => {
                             </tr>
                           </thead>
                           <tbody>
-                            <tr>
-                              <td style={{ position: 'sticky', left: 0, background: '#fff', zIndex: 1 }}>
-                                <i className="ri-edit-line" onClick={() => setShowComponentModal(true)}></i>
-                                <i className="bi bi-pencil-square"></i>
-                                <i className="ri-eye-line"></i>
-                              </td>
-                              <td style={{ position: 'sticky', left: 80, background: '#fff', zIndex: 1 }}>
-                                <input
-                                  type="checkbox"
-                                  name={`is_active_table_${sku.id}`}
-                                  value="Option 2"
-                                  checked={sku.is_active}
-                                  readOnly
-                                />
-                              </td>
-                              <td>Plastic</td>
-                              <td>CR-001</td>
-                              <td>C-1001</td>
-                              <td>Bottle Cap</td>
-                              <td>2023</td>
-                              <td>2024</td>
-                              <td>Bg-001</td>
-                              <td>10</td>
-                              <td>PCS</td>
-                              <td>PCS</td>
-                              <td>Primary</td>
-                              <td>Net</td>
-                              <td>g</td>
-                              <td>20</td>
-                              <td>10</td>
-                              <td>Text 1</td>
-                              <td>Text 2</td>
-                              <td>Text 3</td>
-                              <td>Text 4</td>
-                              <td>Text 5</td>
-                              <td>Text 6</td>
-                              <td>Text 7</td>
-                              <td>Text 8</td>
-                              <td>Text 9</td>
-                              <td>Text 10</td>
-                              <td>Text 11</td>
-                              <td>Text 12</td>
-                            </tr>
+                            {componentRows.map((row, idx) => (
+                              <tr key={row.id}>
+                                <td style={{ position: 'sticky', left: 0, background: '#fff', zIndex: 1 }}>
+                                  <i className="ri-edit-line" onClick={() => setShowComponentModal(true)}></i>
+                                  <i className="bi bi-pencil-square"></i>
+                                  <i className="ri-eye-line"></i>
+                                </td>
+                                <td style={{ position: 'sticky', left: 80, background: '#fff', zIndex: 1 }}>
+                                  <input
+                                    type="checkbox"
+                                    name={`is_active_table_row_${row.id}`}
+                                    checked={row.is_active}
+                                    onChange={() => handleComponentIsActiveChange(row.id, row.is_active)}
+                                  />
+                                </td>
+                                <td>{row.material_type}</td>
+                                <td>{row.component_reference}</td>
+                                <td>{row.component_code}</td>
+                                <td>{row.component_description}</td>
+                                <td>{row.valid_from}</td>
+                                <td>{row.valid_to}</td>
+                                <td>{row.material_group}</td>
+                                <td>{row.qtv}</td>
+                                <td>{row.uom}</td>
+                                <td>{row.basic_uom}</td>
+                                <td>{row.packaging_type}</td>
+                                <td>{row.weight_type}</td>
+                                <td>{row.unit_measure}</td>
+                                <td>{row.post_customer}</td>
+                                <td>{row.post_industrial}</td>
+                                <td>{row.text1}</td>
+                                <td>{row.text2}</td>
+                                <td>{row.text3}</td>
+                                <td>{row.text4}</td>
+                              </tr>
+                            ))}
                           </tbody>
                         </table>
                       </div>
@@ -435,6 +520,13 @@ const CmSkuDetail: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        show={showConfirm}
+        message={pendingSkuStatus ? 'Are you sure you want to deactivate this SKU?' : 'Are you sure you want to activate this SKU?'}
+        onConfirm={handleConfirmStatusChange}
+        onCancel={handleCancelStatusChange}
+      />
     </Layout>
   );
 };
