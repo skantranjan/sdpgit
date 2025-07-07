@@ -1,0 +1,543 @@
+CREATE TABLE public.sdp_period (
+    id INTEGER PRIMARY KEY,
+    period CHARACTER VARYING(55),
+    is_active BOOLEAN
+);
+
+
+
+-- Table: public.sdp_component_base_uom
+
+-- DROP TABLE IF EXISTS public.sdp_component_base_uom;
+
+CREATE TABLE IF NOT EXISTS public.sdp_component_base_uom
+(
+    id integer NOT NULL DEFAULT nextval('sdp_component_base_uom_id_seq'::regclass),
+    item_name character varying(50) COLLATE pg_catalog."default",
+    item_order integer,
+    is_active boolean DEFAULT true,
+    created_by character varying(50) COLLATE pg_catalog."default",
+    created_date timestamp without time zone,
+    CONSTRAINT sdp_component_base_uom_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_component_base_uom
+    OWNER to sdptl_user;
+
+
+
+
+
+-- Table: public.sdp_component_details
+
+-- DROP TABLE IF EXISTS public.sdp_component_details;
+
+CREATE TABLE IF NOT EXISTS public.sdp_component_details
+(
+    id integer NOT NULL DEFAULT nextval('sdp_component_details_id_seq'::regclass),
+    sku_code character varying(50) COLLATE pg_catalog."default",
+    formulation_reference character varying(50) COLLATE pg_catalog."default",
+    material_type_id character varying(50) COLLATE pg_catalog."default",
+    components_reference character varying(50) COLLATE pg_catalog."default",
+    component_code character varying(50) COLLATE pg_catalog."default",
+    component_description character varying(255) COLLATE pg_catalog."default",
+    component_valid_from timestamp without time zone,
+    component_valid_to timestamp without time zone,
+    component_material_group character varying(50) COLLATE pg_catalog."default",
+    component_quantity character varying(50) COLLATE pg_catalog."default",
+    component_uom_id integer,
+    component_base_quantity character varying(50) COLLATE pg_catalog."default",
+    component_base_uom_id character varying(50) COLLATE pg_catalog."default",
+    percent_w_w character varying(50) COLLATE pg_catalog."default",
+    evidence character varying(50) COLLATE pg_catalog."default",
+    component_packaging_type_id character varying(50) COLLATE pg_catalog."default",
+    component_packaging_material character varying(50) COLLATE pg_catalog."default",
+    helper_column character varying(50) COLLATE pg_catalog."default",
+    component_unit_weight character varying(50) COLLATE pg_catalog."default",
+    weight_unit_measure_id character varying(50) COLLATE pg_catalog."default",
+    percent_mechanical_pcr_content character varying(50) COLLATE pg_catalog."default",
+    percent_mechanical_pir_content character varying(50) COLLATE pg_catalog."default",
+    percent_chemical_recycled_content character varying(50) COLLATE pg_catalog."default",
+    percent_bio_sourced character varying(50) COLLATE pg_catalog."default",
+    material_structure_multimaterials character varying(255) COLLATE pg_catalog."default",
+    component_packaging_color_opacity character varying(50) COLLATE pg_catalog."default",
+    component_packaging_level_id character varying(50) COLLATE pg_catalog."default",
+    component_dimensions character varying(100) COLLATE pg_catalog."default",
+    packaging_specification_evidence character varying(50) COLLATE pg_catalog."default",
+    evidence_of_recycled_or_bio_source character varying(50) COLLATE pg_catalog."default",
+    last_update_date character varying(50) COLLATE pg_catalog."default",
+    category_entry_id timestamp without time zone,
+    data_verification_entry_id character varying(50) COLLATE pg_catalog."default",
+    user_id character varying(50) COLLATE pg_catalog."default",
+    signed_off_by integer,
+    signed_off_date character varying(50) COLLATE pg_catalog."default",
+    mandatory_fields_completion_status timestamp without time zone,
+    evidence_provided character varying(50) COLLATE pg_catalog."default",
+    document_status character varying(50) COLLATE pg_catalog."default",
+    is_active boolean DEFAULT true,
+    created_by character varying(50) COLLATE pg_catalog."default",
+    created_date timestamp without time zone,
+    year character varying(50) COLLATE pg_catalog."default",
+    component_unit_weight_id character varying(50) COLLATE pg_catalog."default",
+    cm_code character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT sdp_component_details_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_component_uom FOREIGN KEY (component_uom_id)
+        REFERENCES public.sdp_component_uom (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT fk_sku_code FOREIGN KEY (sku_code)
+        REFERENCES public.sdp_skudetails (sku_code) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT sdp_component_details_component_uom_id_fkey FOREIGN KEY (component_uom_id)
+        REFERENCES public.sdp_component_uom (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT sdp_component_details_signed_off_by_fkey FOREIGN KEY (signed_off_by)
+        REFERENCES public.sdp_users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_component_details
+    OWNER to sdptl_user;
+
+
+
+
+
+
+-- Table: public.sdp_component_details_auditlog
+
+-- DROP TABLE IF EXISTS public.sdp_component_details_auditlog;
+
+CREATE TABLE IF NOT EXISTS public.sdp_component_details_auditlog
+(
+    id integer NOT NULL DEFAULT nextval('sdp_component_details_auditlog_id_seq'::regclass),
+    sku_code character varying(50) COLLATE pg_catalog."default",
+    component_id integer,
+    sku_reference character varying(50) COLLATE pg_catalog."default",
+    formulation_reference character varying(50) COLLATE pg_catalog."default",
+    material_type_id character varying(50) COLLATE pg_catalog."default",
+    components_reference character varying(50) COLLATE pg_catalog."default",
+    component_code character varying(50) COLLATE pg_catalog."default",
+    component_description character varying(255) COLLATE pg_catalog."default",
+    component_valid_from timestamp without time zone,
+    component_valid_to character varying(50) COLLATE pg_catalog."default",
+    component_material_group character varying(50) COLLATE pg_catalog."default",
+    component_quantity character varying(50) COLLATE pg_catalog."default",
+    component_uom_id character varying(50) COLLATE pg_catalog."default",
+    component_base_quantity character varying(50) COLLATE pg_catalog."default",
+    component_base_uom_id character varying(50) COLLATE pg_catalog."default",
+    percent_w_w character varying(50) COLLATE pg_catalog."default",
+    evidence character varying(50) COLLATE pg_catalog."default",
+    component_packaging_type_id character varying(50) COLLATE pg_catalog."default",
+    component_packaging_material_id character varying(50) COLLATE pg_catalog."default",
+    helper_column character varying(50) COLLATE pg_catalog."default",
+    component_unit_weight character varying(50) COLLATE pg_catalog."default",
+    weight_unit_measure_id character varying(50) COLLATE pg_catalog."default",
+    percent_mechanical_pcr_content character varying(50) COLLATE pg_catalog."default",
+    percent_mechanical_pir_content character varying(50) COLLATE pg_catalog."default",
+    percent_chemical_recycled_content character varying(50) COLLATE pg_catalog."default",
+    percent_bio_sourced character varying(50) COLLATE pg_catalog."default",
+    material_structure_multimaterials character varying(255) COLLATE pg_catalog."default",
+    component_packaging_color_opacity character varying(50) COLLATE pg_catalog."default",
+    component_packaging_level_id character varying(50) COLLATE pg_catalog."default",
+    component_dimensions character varying(100) COLLATE pg_catalog."default",
+    packaging_specification_evidence character varying(50) COLLATE pg_catalog."default",
+    evidence_of_recycled_or_bio_source character varying(50) COLLATE pg_catalog."default",
+    last_update_date timestamp without time zone,
+    category_entry_id character varying(50) COLLATE pg_catalog."default",
+    data_verification_entry_id character varying(50) COLLATE pg_catalog."default",
+    user_id integer,
+    signed_off_by character varying(50) COLLATE pg_catalog."default",
+    signed_off_date timestamp without time zone,
+    mandatory_fields_completion_status character varying(50) COLLATE pg_catalog."default",
+    evidence_provided character varying(50) COLLATE pg_catalog."default",
+    document_status integer,
+    is_active boolean DEFAULT true,
+    created_by character varying(50) COLLATE pg_catalog."default",
+    created_date timestamp without time zone,
+    CONSTRAINT sdp_component_details_auditlog_pkey PRIMARY KEY (id),
+    CONSTRAINT sdp_component_details_auditlog_component_id_fkey FOREIGN KEY (component_id)
+        REFERENCES public.sdp_component_details (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT sdp_component_details_auditlog_sku_code_fkey FOREIGN KEY (sku_code)
+        REFERENCES public.sdp_skudetails (sku_code) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT sdp_component_details_auditlog_user_id_fkey FOREIGN KEY (user_id)
+        REFERENCES public.sdp_users (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_component_details_auditlog
+    OWNER to sdptl_user;
+
+
+
+
+
+
+
+
+
+-- Table: public.sdp_component_packaging_level
+
+-- DROP TABLE IF EXISTS public.sdp_component_packaging_level;
+
+CREATE TABLE IF NOT EXISTS public.sdp_component_packaging_level
+(
+    id integer NOT NULL DEFAULT nextval('sdp_component_packaging_level_id_seq'::regclass),
+    item_name character varying(50) COLLATE pg_catalog."default",
+    item_order integer,
+    is_active boolean DEFAULT true,
+    created_by character varying(50) COLLATE pg_catalog."default",
+    created_date timestamp without time zone,
+    CONSTRAINT sdp_component_packaging_level_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_component_packaging_level
+    OWNER to sdptl_user;
+
+
+
+
+
+
+
+-- Table: public.sdp_component_packaging_material
+
+-- DROP TABLE IF EXISTS public.sdp_component_packaging_material;
+
+CREATE TABLE IF NOT EXISTS public.sdp_component_packaging_material
+(
+    id integer NOT NULL DEFAULT nextval('sdp_component_packaging_material_id_seq'::regclass),
+    item_name character varying(50) COLLATE pg_catalog."default",
+    item_order integer,
+    is_active boolean DEFAULT true,
+    created_by character varying(50) COLLATE pg_catalog."default" DEFAULT CURRENT_USER,
+    created_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT sdp_component_packaging_material_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_component_packaging_material
+    OWNER to sdptl_user;
+
+
+
+
+
+
+
+-- Table: public.sdp_component_packaging_type
+
+-- DROP TABLE IF EXISTS public.sdp_component_packaging_type;
+
+CREATE TABLE IF NOT EXISTS public.sdp_component_packaging_type
+(
+    id integer NOT NULL DEFAULT nextval('sdp_component_packaging_type_id_seq'::regclass),
+    item_name character varying(50) COLLATE pg_catalog."default",
+    item_order integer,
+    is_active boolean DEFAULT true,
+    created_by character varying(50) COLLATE pg_catalog."default" DEFAULT CURRENT_USER,
+    created_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT sdp_component_packaging_type_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_component_packaging_type
+    OWNER to sdptl_user;
+
+
+
+
+
+
+
+
+-- Table: public.sdp_component_uom
+
+-- DROP TABLE IF EXISTS public.sdp_component_uom;
+
+CREATE TABLE IF NOT EXISTS public.sdp_component_uom
+(
+    id integer NOT NULL DEFAULT nextval('sdp_component_uom_id_seq'::regclass),
+    item_name character varying(50) COLLATE pg_catalog."default",
+    item_order integer,
+    is_active boolean DEFAULT true,
+    created_by character varying(50) COLLATE pg_catalog."default" DEFAULT CURRENT_USER,
+    created_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT sdp_component_uom_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_component_uom
+    OWNER to sdptl_user;
+
+
+
+
+
+
+
+-- Table: public.sdp_evidence
+
+-- DROP TABLE IF EXISTS public.sdp_evidence;
+
+CREATE TABLE IF NOT EXISTS public.sdp_evidence
+(
+    id integer NOT NULL DEFAULT nextval('sdp_evidence_id_seq'::regclass),
+    component_id integer NOT NULL,
+    evidence_file_name character varying(255) COLLATE pg_catalog."default",
+    evidence_file_url character varying(255) COLLATE pg_catalog."default",
+    created_by character varying(50) COLLATE pg_catalog."default",
+    created_date timestamp without time zone,
+    CONSTRAINT sdp_evidence_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_evidence
+    OWNER to sdptl_user;
+
+
+
+
+
+
+-- Table: public.sdp_material_type
+
+-- DROP TABLE IF EXISTS public.sdp_material_type;
+
+CREATE TABLE IF NOT EXISTS public.sdp_material_type
+(
+    id integer NOT NULL DEFAULT nextval('sdp_material_type_id_seq'::regclass),
+    item_name character varying(50) COLLATE pg_catalog."default",
+    item_order integer,
+    is_active boolean DEFAULT true,
+    created_by character varying(50) COLLATE pg_catalog."default",
+    created_date timestamp without time zone,
+    CONSTRAINT sdp_material_type_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_material_type
+    OWNER to sdptl_user;
+
+
+
+
+
+
+
+
+
+-- Table: public.sdp_period
+
+-- DROP TABLE IF EXISTS public.sdp_period;
+
+CREATE TABLE IF NOT EXISTS public.sdp_period
+(
+    id integer NOT NULL,
+    period character varying(55) COLLATE pg_catalog."default",
+    is_active boolean,
+    CONSTRAINT sdp_period_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_period
+    OWNER to sdptl_user;
+
+
+
+
+
+
+
+
+
+
+
+
+-- Table: public.sdp_roles
+
+-- DROP TABLE IF EXISTS public.sdp_roles;
+
+CREATE TABLE IF NOT EXISTS public.sdp_roles
+(
+    id integer NOT NULL DEFAULT nextval('sdp_roles_id_seq'::regclass),
+    role_name character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT sdp_roles_pkey PRIMARY KEY (id),
+    CONSTRAINT sdp_roles_role_name_key UNIQUE (role_name)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_roles
+    OWNER to sdptl_user;
+
+
+
+
+
+
+
+-- Table: public.sdp_skudetails
+
+-- DROP TABLE IF EXISTS public.sdp_skudetails;
+
+CREATE TABLE IF NOT EXISTS public.sdp_skudetails
+(
+    id integer NOT NULL DEFAULT nextval('sdp_skudetails_id_seq'::regclass),
+    sku_code character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    sku_description character varying(150) COLLATE pg_catalog."default",
+    cm_code character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    cm_description character varying(150) COLLATE pg_catalog."default" NOT NULL,
+    sku_reference character varying(50) COLLATE pg_catalog."default",
+    is_active boolean DEFAULT true,
+    created_by character varying(50) COLLATE pg_catalog."default",
+    created_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    purchased_quantity integer NOT NULL DEFAULT 0,
+    sku_reference_check character varying(50) COLLATE pg_catalog."default",
+    formulation_reference character varying(50) COLLATE pg_catalog."default",
+    period character varying(55) COLLATE pg_catalog."default",
+    CONSTRAINT sdp_skudetails_pkey PRIMARY KEY (id),
+    CONSTRAINT sku_code UNIQUE (sku_code),
+    CONSTRAINT uq_sku_code UNIQUE (sku_code),
+    CONSTRAINT sdp_skudetails_cm_code_fkey FOREIGN KEY (cm_code)
+        REFERENCES public.sdp_contractors (cm_code) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_skudetails
+    OWNER to sdptl_user;
+
+
+
+
+
+
+-- Table: public.sdp_skudetails_auditlog
+
+-- DROP TABLE IF EXISTS public.sdp_skudetails_auditlog;
+
+CREATE TABLE IF NOT EXISTS public.sdp_skudetails_auditlog
+(
+    id integer NOT NULL DEFAULT nextval('sdp_skudetails_auditlog_id_seq'::regclass),
+    sku_code character varying(150) COLLATE pg_catalog."default",
+    sku_description character varying(150) COLLATE pg_catalog."default",
+    cm_code character varying(50) COLLATE pg_catalog."default",
+    cm_description character varying(150) COLLATE pg_catalog."default",
+    is_active boolean DEFAULT true,
+    created_by character varying(50) COLLATE pg_catalog."default",
+    created_date timestamp without time zone,
+    CONSTRAINT sdp_skudetails_auditlog_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_skudetails_auditlog
+    OWNER to sdptl_user;
+
+
+
+
+
+
+
+
+
+-- Table: public.sdp_users
+
+-- DROP TABLE IF EXISTS public.sdp_users;
+
+CREATE TABLE IF NOT EXISTS public.sdp_users
+(
+    id integer NOT NULL DEFAULT nextval('sdp_users_id_seq'::regclass),
+    username character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    email character varying(150) COLLATE pg_catalog."default" NOT NULL,
+    role_id integer NOT NULL,
+    created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT sdp_users_pkey PRIMARY KEY (id),
+    CONSTRAINT sdp_users_email_key UNIQUE (email),
+    CONSTRAINT sdp_users_username_key UNIQUE (username),
+    CONSTRAINT sdp_users_role_id_fkey FOREIGN KEY (role_id)
+        REFERENCES public.sdp_roles (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_users
+    OWNER to sdptl_user;
+-- Index: idx_users_email
+
+-- DROP INDEX IF EXISTS public.idx_users_email;
+
+CREATE INDEX IF NOT EXISTS idx_users_email
+    ON public.sdp_users USING btree
+    (email COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_users_role_id
+
+-- DROP INDEX IF EXISTS public.idx_users_role_id;
+
+CREATE INDEX IF NOT EXISTS idx_users_role_id
+    ON public.sdp_users USING btree
+    (role_id ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_users_username
+
+-- DROP INDEX IF EXISTS public.idx_users_username;
+
+CREATE INDEX IF NOT EXISTS idx_users_username
+    ON public.sdp_users USING btree
+    (username COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+
+
+
+
+
+
+-- Table: public.sdp_weight_unit_measure
+
+-- DROP TABLE IF EXISTS public.sdp_weight_unit_measure;
+
+CREATE TABLE IF NOT EXISTS public.sdp_weight_unit_measure
+(
+    id integer NOT NULL DEFAULT nextval('sdp_weight_unit_measure_id_seq'::regclass),
+    item_name character varying(50) COLLATE pg_catalog."default",
+    item_order integer,
+    is_active boolean DEFAULT true,
+    created_by character varying(50) COLLATE pg_catalog."default" DEFAULT CURRENT_USER,
+    created_date timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT sdp_weight_unit_measure_pkey PRIMARY KEY (id)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public.sdp_weight_unit_measure
+    OWNER to sdptl_user;
