@@ -8,13 +8,18 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    <>
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        background: '#fff', // main content background
+      }}
+    >
       <Header />
-      <main>
-        {children}
-      </main>
+      <main style={{ flex: 1 }}>{children}</main>
       <Footer />
-    </>
+    </div>
   );
 };
 

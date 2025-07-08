@@ -3,6 +3,8 @@ import { useParams, useLocation } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Loader from '../components/Loader';
 import ConfirmModal from '../components/ConfirmModal';
+import MultiSelect from '../components/MultiSelect';
+import { Collapse } from 'react-collapse';
 
 // Interface for SKU data structure
 interface SkuData {
@@ -15,6 +17,10 @@ interface SkuData {
   is_active: boolean;
   created_by: string;
   created_date: string;
+  period: string; // Added period field
+  purchased_quantity?: string | number | null;
+  dual_source?: string;
+  formulation_reference?: string;
 }
 
 // Interface for API response
@@ -79,38 +85,104 @@ const CmSkuDetail: React.FC = () => {
   const [pendingSkuId, setPendingSkuId] = useState<number | null>(null);
   const [pendingSkuStatus, setPendingSkuStatus] = useState<boolean>(false);
 
+  // State for applied filters
+  const [appliedFilters, setAppliedFilters] = useState<{ years: string[]; skuDescriptions: string[] }>({ years: [], skuDescriptions: [] });
+
+  // Filtered SKUs based on applied filters
+  const filteredSkuData = skuData.filter(sku => {
+    // Filter by period (years)
+    const yearMatch =
+      appliedFilters.years.length === 0 ||
+      appliedFilters.years.includes(sku.period);
+
+    // Filter by SKU Description
+    const descMatch =
+      appliedFilters.skuDescriptions.length === 0 ||
+      appliedFilters.skuDescriptions.includes(sku.sku_description);
+
+    return yearMatch && descMatch;
+  });
+
+  // Search button handler
+  const handleSearch = () => {
+    setAppliedFilters({ years: selectedYears, skuDescriptions: selectedSkuDescriptions });
+    setOpenIndex(0); // Optionally reset to first panel
+  };
+
+  // Reset button handler
+  const handleReset = () => {
+    setSelectedYears([]);
+    setSelectedSkuDescriptions([]);
+    setAppliedFilters({ years: [], skuDescriptions: [] });
+    setOpenIndex(0);
+  };
+
+  // Expose fetchSkuDetails for use after add/edit
+  const fetchSkuDetails = async () => {
+    if (!cmCode) return;
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch(`http://localhost:5000/sku-details/${cmCode}`);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result: ApiResponse = await response.json();
+      if (result.success) {
+        setSkuData(result.data);
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch SKU details');
+      console.error('Error fetching SKU details:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch SKU details from API
   useEffect(() => {
-    const fetchSkuDetails = async () => {
-      if (!cmCode) return;
-      
+    fetchSkuDetails();
+    // eslint-disable-next-line
+  }, [cmCode]);
+
+  // Fetch years from API
+  const [years, setYears] = useState<string[]>([]);
+  const [selectedYears, setSelectedYears] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchYears = async () => {
       try {
-        setLoading(true);
-        setError(null);
-        
-        const response = await fetch(`http://localhost:5000/sku-details/${cmCode}`);
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        
-        const result: ApiResponse = await response.json();
-        
-        if (result.success) {
-          setSkuData(result.data);
-        } else {
-          throw new Error('API returned unsuccessful response');
-        }
+        const response = await fetch('http://localhost:5000/sku-details-active-years');
+        if (!response.ok) throw new Error('Failed to fetch years');
+        const result = await response.json();
+        // Assume result is an array of years or { years: [...] }
+        setYears(Array.isArray(result) ? result : result.years || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch SKU details');
-        console.error('Error fetching SKU details:', err);
-      } finally {
-        setLoading(false);
+        setYears([]);
       }
     };
+    fetchYears();
+  }, []);
 
-    fetchSkuDetails();
-  }, [cmCode]);
+  // Fetch SKU descriptions from API
+  const [skuDescriptions, setSkuDescriptions] = useState<string[]>([]);
+  const [selectedSkuDescriptions, setSelectedSkuDescriptions] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchDescriptions = async () => {
+      try {
+        const response = await fetch('http://localhost:5000/sku-descriptions');
+        if (!response.ok) throw new Error('Failed to fetch descriptions');
+        const result = await response.json();
+        setSkuDescriptions(result.descriptions || []);
+      } catch (err) {
+        setSkuDescriptions([]);
+      }
+    };
+    fetchDescriptions();
+  }, []);
 
   // Handler to update is_active status
   const handleIsActiveChange = async (skuId: number, currentStatus: boolean) => {
@@ -158,6 +230,180 @@ const CmSkuDetail: React.FC = () => {
     setPendingSkuId(null);
   };
 
+  // Add state for Add SKU modal fields and validation
+  const [addSkuPeriod, setAddSkuPeriod] = useState('');
+  const [addSku, setAddSku] = useState('');
+  const [addSkuDescription, setAddSkuDescription] = useState('');
+  const [addSkuQty, setAddSkuQty] = useState('');
+  const [addSkuErrors, setAddSkuErrors] = useState({ sku: '', skuDescription: '', period: '', qty: '', server: '' });
+  const [addSkuSuccess, setAddSkuSuccess] = useState('');
+  const [addSkuLoading, setAddSkuLoading] = useState(false);
+
+  // Add SKU handler
+  const handleAddSkuSave = async () => {
+    // Client-side validation
+    let errors = { sku: '', skuDescription: '', period: '', qty: '', server: '' };
+    if (!addSku.trim()) errors.sku = 'A value is required for SKU code';
+    if (!addSkuDescription.trim()) errors.skuDescription = 'A value is required for SKU description';
+    if (!addSkuPeriod) errors.period = 'A value is required for the Period';
+    if (!addSkuQty || isNaN(Number(addSkuQty)) || Number(addSkuQty) <= 0) errors.qty = 'A value is required for Purchased Quantity';
+    setAddSkuErrors(errors);
+    setAddSkuSuccess('');
+    if (errors.sku || errors.skuDescription || errors.period || errors.qty) return;
+
+    // POST to API
+    setAddSkuLoading(true);
+    try {
+      const response = await fetch('http://localhost:5000/sku-details/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sku_code: addSku,
+          sku_description: addSkuDescription,
+          period: addSkuPeriod,
+          purchased_quantity: addSkuQty, // send as string
+          cm_code: cmCode,
+          cm_description: cmDescription
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        // Server-side validation error
+        setAddSkuErrors({ ...errors, server: result.message || 'Server validation failed' });
+        setAddSkuLoading(false);
+        return;
+      }
+      // Success
+      setAddSkuSuccess('SKU added successfully!');
+      setAddSkuErrors({ sku: '', skuDescription: '', period: '', qty: '', server: '' });
+      // Call audit log API
+      fetch('http://localhost:5000/sku-auditlog/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sku_code: addSku,
+          sku_description: addSkuDescription,
+          cm_code: cmCode,
+          cm_description: cmDescription,
+          is_active: true, // assuming new SKUs are active
+          created_by: 'system', // or use actual user if available
+          created_date: new Date().toISOString()
+        })
+      });
+      setTimeout(async () => {
+        setShowSkuModal(false);
+        setAddSku('');
+        setAddSkuDescription('');
+        setAddSkuPeriod('');
+        setAddSkuQty('');
+        setAddSkuSuccess('');
+        setLoading(true); // show full-page loader
+        await fetchSkuDetails(); // refresh data
+        setLoading(false); // hide loader
+      }, 1200);
+    } catch (err) {
+      setAddSkuErrors({ ...errors, server: 'Network or server error' });
+    } finally {
+      setAddSkuLoading(false);
+    }
+  };
+
+  // Edit SKU modal state
+  const [showEditSkuModal, setShowEditSkuModal] = useState(false);
+  const [editSkuData, setEditSkuData] = useState({
+    period: '',
+    sku: '',
+    skuDescription: '',
+    qty: '',
+    dualSource: '',
+    skuReference: '',
+    formulationReference: '',
+  });
+  const [editSkuErrors, setEditSkuErrors] = useState({ sku: '', skuDescription: '', period: '', qty: '', formulationReference: '', server: '' });
+  const [editSkuSuccess, setEditSkuSuccess] = useState('');
+  const [editSkuLoading, setEditSkuLoading] = useState(false);
+
+  // Handler to open Edit SKU modal (to be called on Edit SKU button click)
+  const handleEditSkuOpen = (sku: SkuData) => {
+    setEditSkuData({
+      period: sku.period || '',
+      sku: sku.sku_code || '',
+      skuDescription: sku.sku_description || '',
+      qty: sku.purchased_quantity != null ? String(sku.purchased_quantity) : '',
+      dualSource: sku.dual_source || '',
+      skuReference: sku.sku_reference || '',
+      formulationReference: sku.formulation_reference || '',
+    });
+    setEditSkuErrors({ sku: '', skuDescription: '', period: '', qty: '', formulationReference: '', server: '' });
+    setEditSkuSuccess('');
+    setShowEditSkuModal(true);
+  };
+
+  // Edit SKU handler
+  const handleEditSkuUpdate = async () => {
+    // Client-side validation
+    let errors = { sku: '', skuDescription: '', period: '', qty: '', formulationReference: '', server: '' };
+    if (!editSkuData.sku.trim()) errors.sku = 'A value is required for SKU code';
+    if (!editSkuData.skuDescription.trim()) errors.skuDescription = 'A value is required for SKU description';
+    if (!editSkuData.period) errors.period = 'A value is required for the Period';
+    if (!editSkuData.qty || isNaN(Number(editSkuData.qty)) || Number(editSkuData.qty) <= 0) errors.qty = 'A value is required for Purchased Quantity';
+    // Formulation Reference is now optional, so no validation
+    setEditSkuErrors(errors);
+    setEditSkuSuccess('');
+    if (errors.sku || errors.skuDescription || errors.period || errors.qty) return;
+
+    // PUT to API
+    setEditSkuLoading(true);
+    try {
+      const response = await fetch(`http://localhost:5000/sku-details/update/${encodeURIComponent(editSkuData.sku)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sku_code: editSkuData.sku,
+          sku_description: editSkuData.skuDescription,
+          period: editSkuData.period,
+          purchased_quantity: editSkuData.qty, // send as string
+          dual_source: editSkuData.dualSource,
+          sku_reference: editSkuData.skuReference,
+          formulation_reference: editSkuData.formulationReference
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        setEditSkuErrors({ ...errors, server: result.message || 'Server validation failed' });
+        setEditSkuLoading(false);
+        return;
+      }
+      setEditSkuSuccess('SKU updated successfully!');
+      setEditSkuErrors({ sku: '', skuDescription: '', period: '', qty: '', formulationReference: '', server: '' });
+      // Call audit log API
+      fetch('http://localhost:5000/sku-auditlog/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sku_code: editSkuData.sku,
+          sku_description: editSkuData.skuDescription,
+          cm_code: cmCode,
+          cm_description: cmDescription,
+          is_active: true, // or use actual value if available
+          created_by: 'system', // or use actual user if available
+          created_date: new Date().toISOString()
+        })
+      });
+      setTimeout(async () => {
+        setShowEditSkuModal(false);
+        setEditSkuSuccess('');
+        setLoading(true); // show full-page loader
+        await fetchSkuDetails(); // refresh data
+        setLoading(false); // hide loader
+      }, 1200);
+    } catch (err) {
+      setEditSkuErrors({ ...errors, server: 'Network or server error' });
+    } finally {
+      setEditSkuLoading(false);
+    }
+  };
+
   return (
     <Layout>
       {loading && <Loader />}
@@ -166,16 +412,16 @@ const CmSkuDetail: React.FC = () => {
           <div className="icon">
             <i className="ri-file-list-3-fill"></i>
           </div>
-          <h1>CM Detail</h1>
+          <h1>3PM Detail</h1>
         </div>
 
         <div className="filters CMDetails">
           <div className="row">
             <div className="col-sm-12 ">
               <ul>
-                <li><strong>CM Code: </strong> {cmCode}</li>
+                <li><strong>3PM Code: </strong> {cmCode}</li>
                 <li> | </li>
-                <li><strong> CM Description: </strong> {cmDescription}</li>
+                <li><strong>3PM Description: </strong> {cmDescription}</li>
                 <li> | </li>
                 <li>
                   <strong>Status: </strong>
@@ -190,9 +436,10 @@ const CmSkuDetail: React.FC = () => {
                   }}>
                     {status ? (status.charAt(0).toUpperCase() + status.slice(1)) : 'N/A'}
                   </span>
-                  <span style={{ marginLeft: 24 }}>
-                    <strong>Total SKUs: </strong> {skuData.length}
-                  </span>
+                </li>
+                <li> | </li>
+                <li>
+                  <strong>Total SKUs: </strong> {skuData.length}
                 </li>
               </ul>
             </div>
@@ -205,28 +452,34 @@ const CmSkuDetail: React.FC = () => {
               <ul>
                 <li>
                   <div className="fBold">Years</div>
-                  <select className="form-control">
-                    <option>1</option>
-                    <option>2</option>
-                    <option>3</option>
-                  </select>
+                  <MultiSelect
+                    options={years.map(y => ({ value: y, label: y }))}
+                    selectedValues={selectedYears}
+                    onSelectionChange={setSelectedYears}
+                    placeholder="Select Years..."
+                    disabled={years.length === 0}
+                    loading={years.length === 0}
+                  />
                 </li>
                 <li>
                   <div className="fBold">SKU Code-Description</div>
-                  <select className="form-control">
-                    <option>1</option>
-                    <option>2</option>
-                    <option>3</option>
-                  </select>
+                  <MultiSelect
+                    options={skuDescriptions.map(desc => ({ value: desc, label: desc }))}
+                    selectedValues={selectedSkuDescriptions}
+                    onSelectionChange={setSelectedSkuDescriptions}
+                    placeholder="Select SKU Code-Description..."
+                    disabled={skuDescriptions.length === 0}
+                    loading={skuDescriptions.length === 0}
+                  />
                 </li>
                 <li>
-                  <button className="btnCommon btnGreen filterButtons" style={{ backgroundColor: '#30ea03', color: '#000' }}>
+                  <button className="btnCommon btnGreen filterButtons" onClick={handleSearch} disabled={loading}>
                     <span>Search</span>
                     <i className="ri-search-line"></i>
                   </button>
                 </li>
                 <li>
-                  <button className="btnCommon btnBlack filterButtons">
+                  <button className="btnCommon btnBlack filterButtons" onClick={handleReset} disabled={loading}>
                     <span>Reset</span>
                     <i className="ri-refresh-line"></i>
                   </button>
@@ -256,33 +509,23 @@ const CmSkuDetail: React.FC = () => {
           </div>
         ) : (
           <div className="panel-group" id="accordion">
-            {skuData.length === 0 ? (
+            {filteredSkuData.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '20px' }}>
                 <p>No SKU data available for this CM Code</p>
               </div>
             ) : (
-              skuData.map((sku, index) => (
+              filteredSkuData.map((sku, index) => (
                 <div key={sku.id} className="panel panel-default" style={{ marginBottom: 10, borderRadius: 6, border: '1px solid #e0e0e0', overflow: 'hidden' }}>
                   <div
                     className="panel-heading panel-title"
                     style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', background: '#000', color: '#fff', fontWeight: 600 }}
                     onClick={() => setOpenIndex(openIndex === index ? null : index)}
                   >
-                    <span style={{
-                      width: 36,
-                      height: 36,
-                      borderRadius: '50%',
-                      border: '3px solid #fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: '#000',
-                      boxSizing: 'border-box',
-                      marginRight: 12,
-                    }}>
-                      <span style={{ fontSize: 28, fontWeight: 900, lineHeight: 1, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        {openIndex === index ? '\u2212' : '\u002b'}
-                      </span>
+                    <span style={{ marginRight: 12, fontSize: 28 }}>
+                      {openIndex === index
+                        ? <i className="ri-indeterminate-circle-line"></i>
+                        : <i className="ri-add-circle-line"></i>
+                      }
                     </span>
                     <span style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
                       <strong>{sku.sku_code}</strong> || {sku.sku_description}
@@ -309,10 +552,7 @@ const CmSkuDetail: React.FC = () => {
                       </button>
                     </span>
                   </div>
-                  <div
-                    className={`panel-collapse collapse${openIndex === index ? ' in' : ''}`}
-                    style={{ display: openIndex === index ? 'block' : 'none' }}
-                  >
+                  <Collapse isOpened={openIndex === index}>
                     <div className="panel-body" style={{ minHeight: 80, padding: 24, position: 'relative' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
                         <button
@@ -331,7 +571,10 @@ const CmSkuDetail: React.FC = () => {
                             gap: 8
                           }}
                           title="Edit SKU"
-                          onClick={e => { e.stopPropagation(); /* Add edit logic here */ }}
+                          onClick={() => {
+                            console.log('SKU passed to Edit:', sku);
+                            handleEditSkuOpen(sku);
+                          }}
                         >
                           <i className="ri-pencil-line" style={{ fontSize: 18, marginRight: 6 }} />
                           Edit SKU
@@ -428,7 +671,7 @@ const CmSkuDetail: React.FC = () => {
                         </table>
                       </div>
                     </div>
-                  </div>
+                  </Collapse>
                 </div>
               ))
             )}
@@ -497,23 +740,227 @@ const CmSkuDetail: React.FC = () => {
         <div className="modal fade show" style={{ display: 'block', background: 'rgba(0,0,0,0.5)' }} tabIndex={-1}>
           <div className="modal-dialog modal-xl modal-dialog-scrollable">
             <div className="modal-content">
-              <div className="modal-header bg-primary text-white" style={{ backgroundColor: '#30ea03' }}>
-                <h5 className="modal-title">Add SKU Details</h5>
-                <button type="button" className="btn-close" onClick={() => setShowSkuModal(false)}></button>
+              <div className="modal-header" style={{ backgroundColor: 'rgb(48, 234, 3)', color: '#000', borderBottom: '2px solid #000', alignItems: 'center' }}>
+                <h5 className="modal-title" style={{ color: '#000', fontWeight: 700, flex: 1 }}>Add SKU Details</h5>
+                {/* Only one close button, styled black, large, right-aligned */}
+                <button
+                  type="button"
+                  onClick={() => setShowSkuModal(false)}
+                  aria-label="Close"
+                  style={{ background: 'none', border: 'none', color: '#000', fontSize: 32, fontWeight: 900, lineHeight: 1, cursor: 'pointer', marginLeft: 8 }}
+                >
+                  &times;
+                </button>
               </div>
-              <div className="modal-body">
+              <div className="modal-body" style={{ background: '#fff' }}>
                 <div className="container-fluid">
                   <div className="row g-3">
-                    {/* Begin Fields */}
-                    <div className="col-md-6"><label>SKU</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>SKU Description</label><input type="text" className="form-control" /></div>
-                    {/* End Fields */}
+                    {/* Period dropdown */}
+                    <div className="col-md-6">
+                      <label>Period</label>
+                      <select
+                        className={`form-control${addSkuErrors.period ? ' is-invalid' : ''}`}
+                        value={addSkuPeriod}
+                        onChange={e => setAddSkuPeriod(e.target.value)}
+                        disabled={addSkuLoading}
+                      >
+                        <option value="">Select Period</option>
+                        {years.map(y => (
+                          <option key={y} value={y}>{y}</option>
+                        ))}
+                      </select>
+                      {addSkuErrors.period && <div className="invalid-feedback" style={{ color: 'red' }}>{addSkuErrors.period}</div>}
+                    </div>
+                    {/* SKU text field */}
+                    <div className="col-md-6">
+                      <label>SKU</label>
+                      <input
+                        type="text"
+                        className={`form-control${addSkuErrors.sku ? ' is-invalid' : ''}`}
+                        value={addSku}
+                        onChange={e => setAddSku(e.target.value)}
+                        disabled={addSkuLoading}
+                      />
+                      {addSkuErrors.sku && <div className="invalid-feedback" style={{ color: 'red' }}>{addSkuErrors.sku}</div>}
+                    </div>
+                    {/* SKU Description text field */}
+                    <div className="col-md-6">
+                      <label>SKU Description</label>
+                      <input
+                        type="text"
+                        className={`form-control${addSkuErrors.skuDescription ? ' is-invalid' : ''}`}
+                        value={addSkuDescription}
+                        onChange={e => setAddSkuDescription(e.target.value)}
+                        disabled={addSkuLoading}
+                      />
+                      {addSkuErrors.skuDescription && <div className="invalid-feedback" style={{ color: 'red' }}>{addSkuErrors.skuDescription}</div>}
+                    </div>
+                    {/* Purchased Quantity text field */}
+                    <div className="col-md-6">
+                      <label>Purchased Quantity</label>
+                      <input
+                        type="text"
+                        className={`form-control${addSkuErrors.qty ? ' is-invalid' : ''}`}
+                        value={addSkuQty}
+                        onChange={e => setAddSkuQty(e.target.value)}
+                        disabled={addSkuLoading}
+                      />
+                      {addSkuErrors.qty && <div className="invalid-feedback" style={{ color: 'red' }}>{addSkuErrors.qty}</div>}
+                    </div>
                   </div>
+                  {addSkuErrors.server && <div style={{ color: 'red', marginTop: 16, fontWeight: 600 }}>{addSkuErrors.server}</div>}
+                  {addSkuSuccess && <div style={{ color: '#30ea03', marginTop: 16, fontWeight: 600 }}>{addSkuSuccess}</div>}
                 </div>
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-primary" style={{ backgroundColor: '#30ea03', border: 'none', color: '#000' }} onClick={() => setShowSkuModal(false)}>
-                  Save
+              {/* Professional footer, white bg, black top border, Save button right-aligned */}
+              <div className="modal-footer" style={{ background: '#fff', borderTop: '2px solid #000', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ backgroundColor: 'rgb(48, 234, 3)', border: 'none', color: '#000', minWidth: 100, fontWeight: 600 }}
+                  onClick={handleAddSkuSave}
+                  disabled={addSkuLoading}
+                  onMouseOver={e => e.currentTarget.style.color = '#fff'}
+                  onMouseOut={e => e.currentTarget.style.color = '#000'}
+                >
+                  {addSkuLoading ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditSkuModal && (
+        (() => { console.log('Edit SKU Data:', editSkuData); return null; })(),
+        <div className="modal fade show" style={{ display: 'block', background: 'rgba(0,0,0,0.5)' }} tabIndex={-1}>
+          <div className="modal-dialog modal-xl modal-dialog-scrollable">
+            <div className="modal-content">
+              <div className="modal-header" style={{ backgroundColor: 'rgb(48, 234, 3)', color: '#000', borderBottom: '2px solid #000', alignItems: 'center' }}>
+                <h5 className="modal-title" style={{ color: '#000', fontWeight: 700, flex: 1 }}>Edit SKU Details</h5>
+                <button
+                  type="button"
+                  onClick={() => setShowEditSkuModal(false)}
+                  aria-label="Close"
+                  style={{ background: 'none', border: 'none', color: '#000', fontSize: 32, fontWeight: 900, lineHeight: 1, cursor: 'pointer', marginLeft: 8 }}
+                >
+                  &times;
+                </button>
+              </div>
+              <div className="modal-body" style={{ background: '#fff' }}>
+                <div className="container-fluid">
+                  <div className="row g-3">
+                    {/* Period (read-only) */}
+                    <div className="col-md-6">
+                      <label>
+                        Period <span style={{ color: 'red' }}>*</span>
+                        <span style={{ color: '#888', fontSize: 12, marginLeft: 6 }}>
+                          <i className="ri-lock-line" style={{ fontSize: 14, verticalAlign: 'middle' }} /> Read Only
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={editSkuData.period}
+                        readOnly
+                        style={{ background: '#f5f5f5', cursor: 'not-allowed' }}
+                      />
+                    </div>
+                    {/* SKU (read-only) */}
+                    <div className="col-md-6">
+                      <label>
+                        SKU <span style={{ color: 'red' }}>*</span>
+                        <span style={{ color: '#888', fontSize: 12, marginLeft: 6 }}>
+                          <i className="ri-lock-line" style={{ fontSize: 14, verticalAlign: 'middle' }} /> Read Only
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={editSkuData.sku}
+                        readOnly
+                        style={{ background: '#f5f5f5', cursor: 'not-allowed' }}
+                      />
+                    </div>
+                    {/* SKU Description (read-only) */}
+                    <div className="col-md-6">
+                      <label>
+                        SKU Description <span style={{ color: 'red' }}>*</span>
+                        <span style={{ color: '#888', fontSize: 12, marginLeft: 6 }}>
+                          <i className="ri-lock-line" style={{ fontSize: 14, verticalAlign: 'middle' }} /> Read Only
+                        </span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={editSkuData.skuDescription}
+                        readOnly
+                        style={{ background: '#f5f5f5', cursor: 'not-allowed' }}
+                      />
+                    </div>
+                    {/* Purchased Quantity text field (required) */}
+                    <div className="col-md-6">
+                      <label>Purchased Quantity <span style={{ color: 'red' }}>*</span></label>
+                      <input
+                        type="text"
+                        className={`form-control${editSkuErrors.qty ? ' is-invalid' : ''}`}
+                        value={editSkuData.qty}
+                        onChange={e => setEditSkuData({ ...editSkuData, qty: e.target.value })}
+                        placeholder="Enter Purchased Quantity"
+                        disabled={editSkuLoading}
+                      />
+                      {editSkuErrors.qty && <div className="invalid-feedback" style={{ color: 'red' }}>{editSkuErrors.qty}</div>}
+                    </div>
+                    {/* Dual-source SKU text field (optional) */}
+                    <div className="col-md-6">
+                      <label>Dual-source SKU</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={editSkuData.dualSource}
+                        onChange={e => setEditSkuData({ ...editSkuData, dualSource: e.target.value })}
+                        placeholder="Enter Dual-source SKU"
+                        disabled={editSkuLoading}
+                      />
+                    </div>
+                    {/* SKU Reference searchable box (optional) */}
+                    <div className="col-md-6">
+                      <label>SKU Reference</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={editSkuData.skuReference}
+                        onChange={e => setEditSkuData({ ...editSkuData, skuReference: e.target.value })}
+                        placeholder="Enter SKU Reference"
+                        disabled={editSkuLoading}
+                      />
+                    </div>
+                    {/* Formulation Reference text field (optional) */}
+                    <div className="col-md-6">
+                      <label>Formulation Reference</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        value={editSkuData.formulationReference}
+                        onChange={e => setEditSkuData({ ...editSkuData, formulationReference: e.target.value })}
+                        placeholder="Enter Formulation Reference"
+                        disabled={editSkuLoading}
+                      />
+                    </div>
+                  </div>
+                  {editSkuErrors.server && <div style={{ color: 'red', marginTop: 16, fontWeight: 600 }}>{editSkuErrors.server}</div>}
+                  {editSkuSuccess && <div style={{ color: '#30ea03', marginTop: 16, fontWeight: 600 }}>{editSkuSuccess}</div>}
+                </div>
+              </div>
+              <div className="modal-footer" style={{ background: '#fff', borderTop: '2px solid #000', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ backgroundColor: 'rgb(48, 234, 3)', border: 'none', color: '#000', minWidth: 100, fontWeight: 600 }}
+                  onClick={handleEditSkuUpdate}
+                  disabled={editSkuLoading}
+                >
+                  {editSkuLoading ? 'Updating...' : 'Update'}
                 </button>
               </div>
             </div>

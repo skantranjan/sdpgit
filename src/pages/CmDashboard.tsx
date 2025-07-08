@@ -98,7 +98,7 @@ const CmDashboard: React.FC = () => {
     // You can add your search logic here
     // For example, filter the table data based on selected values
     if (selectedCmCodes.length > 0) {
-      console.log(`Filtering by CM Codes: ${selectedCmCodes.join(', ')}`);
+      console.log(`Filtering by 3PM Codes: ${selectedCmCodes.join(', ')}`);
     }
     if (selectedSignoffStatuses.length > 0) {
       console.log(`Filtering by Signoff Statuses: ${selectedSignoffStatuses.join(', ')}`);
@@ -188,8 +188,8 @@ const CmDashboard: React.FC = () => {
 
   const handleExportToExcel = () => {
     const exportData = currentData.map(row => ({
-      'CM Code': row.cm_code,
-      'CM Description': row.cm_description,
+      '3PM Code': row.cm_code,
+      '3PM Description': row.cm_description,
       'Signoff Status': row.signoff_status === 'approved'
         ? 'Approved'
         : row.signoff_status === 'rejected'
@@ -215,16 +215,14 @@ const CmDashboard: React.FC = () => {
           <div className="icon">
             <i className="ri-table-line"></i>
           </div>
-          <h1>Contractor Manufacturer
-            
-          </h1>
+          <h1>3PM Dashboard</h1>
         </div>
         <div className="row">
           <div className="col-sm-12">
             <div className="filters">
               <ul>
                 <li>
-                  <div className="fBold">CM Code - Description</div>
+                  <div className="fBold">3PM Code - Description</div>
                   <MultiSelect
                     options={cmCodes
                       .sort((a, b) => a.cm_description.localeCompare(b.cm_description))
@@ -235,11 +233,11 @@ const CmDashboard: React.FC = () => {
                     }
                     selectedValues={selectedCmCodes}
                     onSelectionChange={setSelectedCmCodes}
-                    placeholder="Select CM Codes..."
+                    placeholder="Select 3PM Codes..."
                     disabled={loading}
                     loading={loading}
                   />
-                  {loading && <small style={{color: '#666'}}>Loading CM codes...</small>}
+                  {loading && <small style={{color: '#666'}}>Loading 3PM codes...</small>}
                   {error && <small style={{color: 'red'}}>Error: {error}</small>}
                 </li>
                 <li>
@@ -312,8 +310,8 @@ const CmDashboard: React.FC = () => {
             <table className="table table-striped">
               <thead>
                 <tr>
-                  <th>CM Code</th>
-                  <th>CM Description</th>
+                  <th>3PM Code</th>
+                  <th>3PM Description</th>
                   <th>Signoff Status</th>
                   <th>Signoff By/Rejected By</th>
                   <th>Signoff Date/ Rejected Date</th>
