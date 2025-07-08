@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import Loader from '../components/Loader';
 import ConfirmModal from '../components/ConfirmModal';
@@ -64,6 +64,7 @@ const CmSkuDetail: React.FC = () => {
   const location = useLocation();
   const cmDescription = location.state?.cmDescription || '';
   const status = location.state?.status || '';
+  const navigate = useNavigate();
 
   // State for SKU data
   const [skuData, setSkuData] = useState<SkuData[]>([]);
@@ -404,10 +405,57 @@ const CmSkuDetail: React.FC = () => {
     }
   };
 
+  // Add Component modal state
+  const [showAddComponentModal, setShowAddComponentModal] = useState(false);
+  const [addComponentData, setAddComponentData] = useState({
+    componentType: '',
+    componentCode: '',
+    componentDescription: '',
+    validityFrom: '',
+    validityTo: '',
+    componentCategory: '',
+    componentQuantity: '',
+    componentUnitOfMeasure: '',
+    componentBaseQuantity: '',
+    componentBaseUnitOfMeasure: '',
+    wW: '',
+    componentPackagingType: '',
+    componentPackagingMaterial: '',
+    componentUnitWeight: '',
+    componentWeightUnitOfMeasure: '',
+    percentPostConsumer: '',
+    percentPostIndustrial: '',
+    percentChemical: '',
+    percentBioSourced: '',
+    materialStructure: '',
+    packagingColour: '',
+    packagingLevel: '',
+    componentDimensions: '',
+    formulationReference: '',
+  });
+
   return (
     <Layout>
       {loading && <Loader />}
       <div className="mainInternalPages" style={{ opacity: loading ? 0.5 : 1 }}>
+        <div style={{ marginBottom: 8 }}>
+          <button
+            onClick={() => navigate(-1)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#000',
+              fontSize: 22,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              marginRight: 12
+            }}
+          >
+            <i className="ri-arrow-left-line" style={{ fontSize: 24, marginRight: 4 }} />
+            Back
+          </button>
+        </div>
         <div className="commonTitle">
           <div className="icon">
             <i className="ri-file-list-3-fill"></i>
@@ -590,7 +638,7 @@ const CmSkuDetail: React.FC = () => {
                         <button
                           className="add-sku-btn"
                           style={{ backgroundColor: '#30ea03', color: '#000', marginLeft: 'auto', minWidth: 140 }}
-                          onClick={e => { e.stopPropagation(); setShowComponentModal(true); }}
+                          onClick={e => { e.stopPropagation(); setShowAddComponentModal(true); }}
                         >
                           Add Component <i className="ri-add-circle-line"></i>
                         </button>
@@ -678,62 +726,6 @@ const CmSkuDetail: React.FC = () => {
           </div>
         )}
       </div>
-
-      {/* Component Modal */}
-      {showComponentModal && (
-        <div className="modal fade show" style={{ display: 'block', background: 'rgba(0,0,0,0.5)' }} tabIndex={-1}>
-          <div className="modal-dialog modal-xl modal-dialog-scrollable">
-            <div className="modal-content">
-              <div className="modal-header bg-primary text-white" style={{ backgroundColor: '#30ea03' }}>
-                <h5 className="modal-title">Add Component Details</h5>
-                <button type="button" className="btn-close" onClick={() => setShowComponentModal(false)}></button>
-              </div>
-              <div className="modal-body">
-                <div className="container-fluid">
-                  <div className="row g-3">
-                    {/* Begin Fields */}
-                    <div className="col-md-6"><label>Material Type</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Reference</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Code</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Description</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Valid Date From</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Valid Date To</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Material Group (Category)</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component QTY</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component UoM</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Base UoM</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Packaging Type</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Unit Weight Type</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Unit of Measure</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>% Mechanical Post-Consumer Recycled Content</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>% Mechanical Post-Industrial Recycled Content</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>% Chemical Recycled Content</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>% Bio-sourced?</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Material Structure (Multimaterials with % wt)</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Packaging Colour/Opacity</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Packaging Level</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Component Dimension (3D-LxWxH, 2D LxW)</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Packaging Specification Evidence</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Evidence of Chemical Recycled or Bio-source</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6"><label>Last Updated Date</label><input type="text" className="form-control" /></div>
-                    <div className="col-md-6">
-                      <label>Proof of Evidence File <span className="text-danger">*</span></label>
-                      <input type="file" className="form-control" />
-                      <small className="text-muted" style={{ color: 'red' }}>Max file size: 50MB</small>
-                    </div>
-                    {/* End Fields */}
-                  </div>
-                </div>
-              </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-primary" style={{ backgroundColor: '#30ea03', border: 'none', color: '#000' }} onClick={() => setShowComponentModal(false)}>
-                  Save
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* SKU Modal */}
       {showSkuModal && (
@@ -961,6 +953,190 @@ const CmSkuDetail: React.FC = () => {
                   disabled={editSkuLoading}
                 >
                   {editSkuLoading ? 'Updating...' : 'Update'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showAddComponentModal && (
+        <div className="modal fade show" style={{ display: 'block', background: 'rgba(0,0,0,0.5)' }} tabIndex={-1}>
+          <div className="modal-dialog modal-xl modal-dialog-scrollable">
+            <div className="modal-content">
+              <div className="modal-header" style={{ backgroundColor: '#30ea03', color: '#000', borderBottom: '2px solid #000', alignItems: 'center' }}>
+                <h5 className="modal-title" style={{ color: '#000', fontWeight: 700, flex: 1 }}>Add Component</h5>
+                <button
+                  type="button"
+                  onClick={() => setShowAddComponentModal(false)}
+                  aria-label="Close"
+                  style={{ background: 'none', border: 'none', color: '#000', fontSize: 32, fontWeight: 900, lineHeight: 1, cursor: 'pointer', marginLeft: 8 }}
+                >
+                  &times;
+                </button>
+              </div>
+                      <div className="modal-body" style={{ background: '#fff' }}>
+          <div className="container-fluid">
+            <div className="row g-3">
+              {/* Formulation Reference (Free text) */}
+              <div className="col-md-6">
+                <label>Formulation Reference</label>
+                <input type="text" className="form-control" />
+              </div>
+              {/* Component Type (Drop-down list) */}
+              <div className="col-md-6">
+                <label>Component Type</label>
+                <select className="form-control">
+                  <option value="">Select Type</option>
+                  <option value="Type1">Type 1</option>
+                  <option value="Type2">Type 2</option>
+                </select>
+              </div>
+              {/* Component Code (Free text) */}
+              <div className="col-md-6">
+                <label>Component Code</label>
+                <input type="text" className="form-control" />
+              </div>
+              {/* Component Description (Free text) */}
+              <div className="col-md-6">
+                <label>Component Description</label>
+                <input type="text" className="form-control" />
+              </div>
+              {/* Component validity date - From (Date) */}
+              <div className="col-md-6">
+                <label>Component validity date - From</label>
+                <input type="date" className="form-control" />
+              </div>
+              {/* Component validity date - To (Date) */}
+              <div className="col-md-6">
+                <label>Component validity date - To</label>
+                <input type="date" className="form-control" />
+              </div>
+              {/* Component Category (Drop-down list) */}
+              <div className="col-md-6">
+                <label>Component Category</label>
+                <select className="form-control">
+                  <option value="">Select Category</option>
+                  <option value="Cat1">Category 1</option>
+                  <option value="Cat2">Category 2</option>
+                </select>
+              </div>
+              {/* Component Quantity (Numeric) */}
+              <div className="col-md-6">
+                <label>Component Quantity</label>
+                <input type="number" className="form-control" />
+              </div>
+              {/* Component Unit of Measure (Drop-down list) */}
+              <div className="col-md-6">
+                <label>Component Unit of Measure</label>
+                <select className="form-control">
+                  <option value="">Select UoM</option>
+                  <option value="UOM1">UOM 1</option>
+                  <option value="UOM2">UOM 2</option>
+                </select>
+              </div>
+              {/* Component Base Quantity (Numeric) */}
+              <div className="col-md-6">
+                <label>Component Base Quantity</label>
+                <input type="number" className="form-control" />
+              </div>
+              {/* Component Base Unit of Measure (Default to Each) */}
+              <div className="col-md-6">
+                <label>Component Base Unit of Measure</label>
+                <input type="text" className="form-control" placeholder="Each" />
+              </div>
+              {/* %w/w (Percentage) */}
+              <div className="col-md-6">
+                <label>%w/w</label>
+                <input type="number" className="form-control" placeholder="Percentage" />
+              </div>
+              {/* Component Packaging Type (Drop-down list) */}
+              <div className="col-md-6">
+                <label>Component Packaging Type</label>
+                <select className="form-control">
+                  <option value="">Select Packaging Type</option>
+                  <option value="Type1">Type 1</option>
+                  <option value="Type2">Type 2</option>
+                </select>
+              </div>
+              {/* Component Packaging Material (Drop-down list) */}
+              <div className="col-md-6">
+                <label>Component Packaging Material</label>
+                <select className="form-control">
+                  <option value="">Select Packaging Material</option>
+                  <option value="Material1">Material 1</option>
+                  <option value="Material2">Material 2</option>
+                </select>
+              </div>
+              {/* Component Unit Weight (Numeric) */}
+              <div className="col-md-6">
+                <label>Component Unit Weight</label>
+                <input type="number" className="form-control" />
+              </div>
+              {/* Component Weight Unit of Measure (Drop-down list) */}
+              <div className="col-md-6">
+                <label>Component Weight Unit of Measure</label>
+                <select className="form-control">
+                  <option value="">Select Weight UoM</option>
+                  <option value="g">g</option>
+                  <option value="kg">kg</option>
+                </select>
+              </div>
+              {/* % Mechanical Post-Consumer Recycled Content (inc. Chemical) (Percentage) */}
+              <div className="col-md-6">
+                <label>% Mechanical Post-Consumer Recycled Content (inc. Chemical)</label>
+                <input type="number" className="form-control" placeholder="Percentage" />
+              </div>
+              {/* % Mechanical Post-Industrial Recycled Content (Percentage) */}
+              <div className="col-md-6">
+                <label>% Mechanical Post-Industrial Recycled Content</label>
+                <input type="number" className="form-control" placeholder="Percentage" />
+              </div>
+              {/* % Chemical Recycled Content (Percentage) */}
+              <div className="col-md-6">
+                <label>% Chemical Recycled Content</label>
+                <input type="number" className="form-control" placeholder="Percentage" />
+              </div>
+              {/* % Bio-sourced? (Percentage) */}
+              <div className="col-md-6">
+                <label>% Bio-sourced?</label>
+                <input type="number" className="form-control" placeholder="Percentage" />
+              </div>
+              {/* Material structure - multimaterials only (with % wt) (Free text) */}
+              <div className="col-md-6">
+                <label>Material structure - multimaterials only (with % wt)</label>
+                <input type="text" className="form-control" />
+              </div>
+              {/* Component packaging colour / opacity (Free text) */}
+              <div className="col-md-6">
+                <label>Component packaging colour / opacity</label>
+                <input type="text" className="form-control" />
+              </div>
+              {/* Component packaging level (Drop-down list) */}
+              <div className="col-md-6">
+                <label>Component packaging level</label>
+                <select className="form-control">
+                  <option value="">Select Packaging Level</option>
+                  <option value="Level1">Level 1</option>
+                  <option value="Level2">Level 2</option>
+                </select>
+              </div>
+              {/* Component dimensions (3D - LxWxH, 2D - LxW) (Free text) */}
+              <div className="col-md-6">
+                <label>Component dimensions (3D - LxWxH, 2D - LxW)</label>
+                <input type="text" className="form-control" />
+              </div>
+            </div>
+          </div>
+        </div>
+              <div className="modal-footer" style={{ background: '#fff', borderTop: '2px solid #000', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn"
+                  style={{ backgroundColor: 'rgb(48, 234, 3)', border: 'none', color: '#000', minWidth: 100, fontWeight: 600 }}
+                  onClick={() => setShowAddComponentModal(false)}
+                >
+                  Save
                 </button>
               </div>
             </div>
