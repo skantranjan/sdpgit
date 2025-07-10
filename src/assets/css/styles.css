@@ -1088,3 +1088,12 @@ button:visited {
   color: #fff !important;
   font-weight: bold;
 }
+
+/* Add this to visually indicate dropdowns */
+.select-with-icon {
+  background: url("data:image/svg+xml;utf8,<svg fill='black' height='16' viewBox='0 0 24 24' width='16' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>") no-repeat right 0.75rem center/1.2em;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 2.5em;
+}

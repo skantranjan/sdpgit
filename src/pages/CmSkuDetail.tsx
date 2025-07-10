@@ -5,6 +5,7 @@ import Loader from '../components/Loader';
 import ConfirmModal from '../components/ConfirmModal';
 import MultiSelect from '../components/MultiSelect';
 import { Collapse } from 'react-collapse';
+import { useMsal } from '@azure/msal-react';
 
 // Interface for SKU data structure
 interface SkuData {
@@ -144,13 +145,32 @@ const CmSkuDetail: React.FC = () => {
     setOpenIndex(0);
   };
 
+  const { instance, accounts } = useMsal();
+
+  async function getAccessToken() {
+    if (accounts.length === 0) {
+      await instance.loginPopup(); // or loginRedirect
+    }
+    const result = await instance.acquireTokenSilent({
+      scopes: ["api://5855622d-af7e-43ca-9266-67919b68fe4a/.default"],
+      account: accounts[0]
+    });
+    return result.accessToken;
+  }
+
   // Expose fetchSkuDetails for use after add/edit
   const fetchSkuDetails = async () => {
     if (!cmCode) return;
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`http://localhost:5000/sku-details/${cmCode}`);
+      const token = await getAccessToken();
+      const response = await fetch(`http://localhost:5000/sku-details/${cmCode}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -217,9 +237,13 @@ const CmSkuDetail: React.FC = () => {
       // Optimistically update UI
       setSkuData(prev => prev.map(sku => sku.id === skuId ? { ...sku, is_active: !currentStatus } : sku));
       // Send PATCH request
+      const token = await getAccessToken();
       await fetch(`http://localhost:5000/sku-details/${skuId}/is-active`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({ is_active: !currentStatus })
       });
     } catch (err) {
@@ -281,9 +305,13 @@ const CmSkuDetail: React.FC = () => {
     // POST to API
     setAddSkuLoading(true);
     try {
+      const token = await getAccessToken();
       const response = await fetch('http://localhost:5000/sku-details/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           sku_code: addSku,
           sku_description: addSkuDescription,
@@ -304,9 +332,13 @@ const CmSkuDetail: React.FC = () => {
       setAddSkuSuccess('SKU added successfully!');
       setAddSkuErrors({ sku: '', skuDescription: '', period: '', qty: '', server: '' });
       // Call audit log API
-      fetch('http://localhost:5000/sku-auditlog/add', {
+      const auditToken = await getAccessToken();
+      await fetch('http://localhost:5000/sku-auditlog/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${auditToken}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           sku_code: addSku,
           sku_description: addSkuDescription,
@@ -382,9 +414,13 @@ const CmSkuDetail: React.FC = () => {
     // PUT to API
     setEditSkuLoading(true);
     try {
+      const token = await getAccessToken();
       const response = await fetch(`http://localhost:5000/sku-details/update/${encodeURIComponent(editSkuData.sku)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           sku_code: editSkuData.sku,
           sku_description: editSkuData.skuDescription,
@@ -404,9 +440,13 @@ const CmSkuDetail: React.FC = () => {
       setEditSkuSuccess('SKU updated successfully!');
       setEditSkuErrors({ sku: '', skuDescription: '', period: '', qty: '', formulationReference: '', server: '' });
       // Call audit log API
-      fetch('http://localhost:5000/sku-auditlog/add', {
+      const auditToken = await getAccessToken();
+      await fetch('http://localhost:5000/sku-auditlog/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${auditToken}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           sku_code: editSkuData.sku,
           sku_description: editSkuData.skuDescription,
@@ -506,9 +546,13 @@ const CmSkuDetail: React.FC = () => {
 
     // POST to API
     try {
+      const token = await getAccessToken();
       const response = await fetch('http://localhost:5000/sku-details/add', { // This endpoint is for SKU, not component
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           sku_code: addSku, // This will be undefined or incorrect
           sku_description: addSkuDescription, // This will be undefined or incorrect
@@ -551,9 +595,13 @@ const CmSkuDetail: React.FC = () => {
       setAddComponentSuccess('Component added successfully!');
       setAddComponentErrors({}); // Clear errors on success
       // Call audit log API
-      fetch('http://localhost:5000/sku-auditlog/add', {
+      const auditToken = await getAccessToken();
+      await fetch('http://localhost:5000/sku-auditlog/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Authorization': `Bearer ${auditToken}`,
+          'Content-Type': 'application/json'
+        },
         body: JSON.stringify({
           sku_code: addSku, // This will be undefined or incorrect
           sku_description: addSkuDescription, // This will be undefined or incorrect
@@ -1149,7 +1197,7 @@ const CmSkuDetail: React.FC = () => {
               {/* Component Type (Drop-down list) */}
               <div className="col-md-6">
                 <label>Component Type</label>
-                <select className="form-control">
+                <select className="form-control select-with-icon">
                   <option value="">Select Type</option>
                   <option value="Type1">Type 1</option>
                   <option value="Type2">Type 2</option>
@@ -1182,7 +1230,7 @@ const CmSkuDetail: React.FC = () => {
               {/* Component Category (Drop-down list) */}
               <div className="col-md-6">
                 <label>Component Category</label>
-                <select className="form-control">
+                <select className="form-control select-with-icon">
                   <option value="">Select Category</option>
                   <option value="Cat1">Category 1</option>
                   <option value="Cat2">Category 2</option>
@@ -1197,7 +1245,7 @@ const CmSkuDetail: React.FC = () => {
               {/* Component Unit of Measure (Drop-down list) */}
               <div className="col-md-6">
                 <label>Component Unit of Measure</label>
-                <select className="form-control">
+                <select className="form-control select-with-icon">
                   <option value="">Select UoM</option>
                   <option value="UOM1">UOM 1</option>
                   <option value="UOM2">UOM 2</option>
@@ -1224,7 +1272,7 @@ const CmSkuDetail: React.FC = () => {
               {/* Component Packaging Type (Drop-down list) */}
               <div className="col-md-6">
                 <label>Component Packaging Type</label>
-                <select className="form-control">
+                <select className="form-control select-with-icon">
                   <option value="">Select Packaging Type</option>
                   <option value="Type1">Type 1</option>
                   <option value="Type2">Type 2</option>
@@ -1233,7 +1281,7 @@ const CmSkuDetail: React.FC = () => {
               {/* Component Packaging Material (Drop-down list) */}
               <div className="col-md-6">
                 <label>Component Packaging Material</label>
-                <select className="form-control">
+                <select className="form-control select-with-icon">
                   <option value="">Select Packaging Material</option>
                   <option value="Material1">Material 1</option>
                   <option value="Material2">Material 2</option>
@@ -1248,7 +1296,7 @@ const CmSkuDetail: React.FC = () => {
               {/* Component Weight Unit of Measure (Drop-down list) */}
               <div className="col-md-6">
                 <label>Component Weight Unit of Measure</label>
-                <select className="form-control">
+                <select className="form-control select-with-icon">
                   <option value="">Select Weight UoM</option>
                   <option value="g">g</option>
                   <option value="kg">kg</option>
@@ -1293,7 +1341,7 @@ const CmSkuDetail: React.FC = () => {
               {/* Component packaging level (Drop-down list) */}
               <div className="col-md-6">
                 <label>Component packaging level</label>
-                <select className="form-control">
+                <select className="form-control select-with-icon">
                   <option value="">Select Packaging Level</option>
                   <option value="Level1">Level 1</option>
                   <option value="Level2">Level 2</option>
