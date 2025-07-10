@@ -59,6 +59,32 @@ const initialComponentRows = [
   // Add more rows as needed
 ];
 
+type AddComponentData = {
+  componentType: string;
+  componentCode: string;
+  componentDescription: string;
+  validityFrom: string;
+  validityTo: string;
+  componentCategory: string;
+  componentQuantity: string;
+  componentUnitOfMeasure: string;
+  componentBaseQuantity: string;
+  componentBaseUnitOfMeasure: string;
+  wW: string;
+  componentPackagingType: string;
+  componentPackagingMaterial: string;
+  componentUnitWeight: string;
+  componentWeightUnitOfMeasure: string;
+  percentPostConsumer: string;
+  percentPostIndustrial: string;
+  percentChemical: string;
+  percentBioSourced: string;
+  materialStructure: string;
+  packagingColour: string;
+  packagingLevel: string;
+  componentDimensions: string;
+};
+
 const CmSkuDetail: React.FC = () => {
   const { cmCode } = useParams();
   const location = useLocation();
@@ -407,7 +433,7 @@ const CmSkuDetail: React.FC = () => {
 
   // Add Component modal state
   const [showAddComponentModal, setShowAddComponentModal] = useState(false);
-  const [addComponentData, setAddComponentData] = useState({
+  const [addComponentData, setAddComponentData] = useState<AddComponentData>({
     componentType: '',
     componentCode: '',
     componentDescription: '',
@@ -431,8 +457,151 @@ const CmSkuDetail: React.FC = () => {
     packagingColour: '',
     packagingLevel: '',
     componentDimensions: '',
-    formulationReference: '',
   });
+
+  // State for evidence upload
+  const [evidenceChecks, setEvidenceChecks] = useState<boolean[]>([false, false, false, false]);
+  const [evidenceFiles, setEvidenceFiles] = useState<File[][]>([[], [], [], []]);
+  const [allEvidenceFiles, setAllEvidenceFiles] = useState<File[]>([]);
+  const [selectForAll, setSelectForAll] = useState(false);
+  const [uploadEvidenceChecked, setUploadEvidenceChecked] = useState(false);
+
+  // Add state for Add Component modal fields and validation
+  const [addComponentErrors, setAddComponentErrors] = useState<Record<string, string>>({});
+  const [addComponentSuccess, setAddComponentSuccess] = useState("");
+
+  // Add Component handler
+  const handleAddComponentSave = async () => {
+    const errors: Record<string, string> = {};
+    if (!addComponentData.componentType) errors.componentType = 'A value is required for Component Type';
+    if (!addComponentData.componentCode) errors.componentCode = 'A value is required for Component Code';
+    if (!addComponentData.componentDescription) errors.componentDescription = 'A value is required for Component Description';
+    if (!addComponentData.validityFrom) errors.validityFrom = 'A value is required for Component validity date - From';
+    if (!addComponentData.validityTo) errors.validityTo = 'A value is required for Component validity date - To';
+    if (!addComponentData.componentQuantity) errors.componentQuantity = 'A value is required for Component Quantity';
+    if (!addComponentData.componentUnitOfMeasure) errors.componentUnitOfMeasure = 'A value is required for Unit of Measure';
+    if (!addComponentData.componentBaseQuantity) errors.componentBaseQuantity = 'A value is required for Component Base Quantity';
+    if (!addComponentData.componentBaseUnitOfMeasure) errors.componentBaseUnitOfMeasure = 'A value is required for Component Base Unit of Measure';
+    if (!addComponentData.componentPackagingType) errors.componentPackagingType = 'A value is required for Component Packaging Type';
+    if (!addComponentData.componentPackagingMaterial) errors.componentPackagingMaterial = 'A value is required for Component Packaging Material';
+    if (!addComponentData.componentUnitWeight) errors.componentUnitWeight = 'A value is required for Component Unit Weight';
+    if (!addComponentData.componentWeightUnitOfMeasure) errors.componentWeightUnitOfMeasure = 'A value is required for Component Weight Unit of Measure';
+
+    // Percentage fields
+    const percentFields = [
+      Number(addComponentData.percentPostConsumer) || 0,
+      Number(addComponentData.percentPostIndustrial) || 0,
+      Number(addComponentData.percentChemical) || 0,
+      Number(addComponentData.percentBioSourced) || 0,
+    ];
+    percentFields.forEach((val, idx) => {
+      if (val > 100) errors[`percent${idx}`] = "This value can't be greater than 100%";
+    });
+    if (percentFields.reduce((a, b) => a + b, 0) > 100) {
+      errors.percentSum = "The sum of the four recycled content values cannot be greater than 100%";
+    }
+
+    setAddComponentErrors(errors);
+    if (Object.keys(errors).length > 0) return; // Do not close modal if errors
+
+    // POST to API
+    try {
+      const response = await fetch('http://localhost:5000/sku-details/add', { // This endpoint is for SKU, not component
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sku_code: addSku, // This will be undefined or incorrect
+          sku_description: addSkuDescription, // This will be undefined or incorrect
+          period: addSkuPeriod, // This will be undefined or incorrect
+          purchased_quantity: addSkuQty, // This will be undefined or incorrect
+          cm_code: cmCode,
+          cm_description: cmDescription,
+          component_type: addComponentData.componentType,
+          component_code: addComponentData.componentCode,
+          component_description: addComponentData.componentDescription,
+          validity_from: addComponentData.validityFrom,
+          validity_to: addComponentData.validityTo,
+          component_category: addComponentData.componentCategory,
+          component_quantity: addComponentData.componentQuantity,
+          component_unit_of_measure: addComponentData.componentUnitOfMeasure,
+          component_base_quantity: addComponentData.componentBaseQuantity,
+          component_base_unit_of_measure: addComponentData.componentBaseUnitOfMeasure,
+          ww: addComponentData.wW,
+          component_packaging_type: addComponentData.componentPackagingType,
+          component_packaging_material: addComponentData.componentPackagingMaterial,
+          component_unit_weight: addComponentData.componentUnitWeight,
+          component_weight_unit_of_measure: addComponentData.componentWeightUnitOfMeasure,
+          percent_post_consumer: addComponentData.percentPostConsumer,
+          percent_post_industrial: addComponentData.percentPostIndustrial,
+          percent_chemical: addComponentData.percentChemical,
+          percent_bio_sourced: addComponentData.percentBioSourced,
+          material_structure: addComponentData.materialStructure,
+          packaging_colour: addComponentData.packagingColour,
+          packaging_level: addComponentData.packagingLevel,
+          component_dimensions: addComponentData.componentDimensions,
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        // Server-side validation error
+        setAddComponentErrors({ ...errors, server: result.message || 'Server validation failed' });
+        return;
+      }
+      // Success
+      setAddComponentSuccess('Component added successfully!');
+      setAddComponentErrors({}); // Clear errors on success
+      // Call audit log API
+      fetch('http://localhost:5000/sku-auditlog/add', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sku_code: addSku, // This will be undefined or incorrect
+          sku_description: addSkuDescription, // This will be undefined or incorrect
+          cm_code: cmCode,
+          cm_description: cmDescription,
+          is_active: true, // assuming new SKUs are active
+          created_by: 'system', // or use actual user if available
+          created_date: new Date().toISOString()
+        })
+      });
+      setTimeout(async () => {
+        setShowAddComponentModal(false);
+        setAddComponentData({
+          componentType: '',
+          componentCode: '',
+          componentDescription: '',
+          validityFrom: '',
+          validityTo: '',
+          componentCategory: '',
+          componentQuantity: '',
+          componentUnitOfMeasure: '',
+          componentBaseQuantity: '',
+          componentBaseUnitOfMeasure: '',
+          wW: '',
+          componentPackagingType: '',
+          componentPackagingMaterial: '',
+          componentUnitWeight: '',
+          componentWeightUnitOfMeasure: '',
+          percentPostConsumer: '',
+          percentPostIndustrial: '',
+          percentChemical: '',
+          percentBioSourced: '',
+          materialStructure: '',
+          packagingColour: '',
+          packagingLevel: '',
+          componentDimensions: '',
+        });
+        setAddComponentSuccess('');
+        setLoading(true); // show full-page loader
+        await fetchSkuDetails(); // refresh data
+        setLoading(false); // hide loader
+      }, 1200);
+    } catch (err) {
+      setAddComponentErrors({ ...errors, server: 'Network or server error' });
+    } finally {
+      // setAddComponentLoading(false); // This line was removed as setAddComponentLoading was not defined
+    }
+  };
 
   return (
     <Layout>
@@ -824,7 +993,6 @@ const CmSkuDetail: React.FC = () => {
       )}
 
       {showEditSkuModal && (
-        (() => { console.log('Edit SKU Data:', editSkuData); return null; })(),
         <div className="modal fade show" style={{ display: 'block', background: 'rgba(0,0,0,0.5)' }} tabIndex={-1}>
           <div className="modal-dialog modal-xl modal-dialog-scrollable">
             <div className="modal-content">
@@ -978,11 +1146,6 @@ const CmSkuDetail: React.FC = () => {
                       <div className="modal-body" style={{ background: '#fff' }}>
           <div className="container-fluid">
             <div className="row g-3">
-              {/* Formulation Reference (Free text) */}
-              <div className="col-md-6">
-                <label>Formulation Reference</label>
-                <input type="text" className="form-control" />
-              </div>
               {/* Component Type (Drop-down list) */}
               <div className="col-md-6">
                 <label>Component Type</label>
@@ -995,22 +1158,26 @@ const CmSkuDetail: React.FC = () => {
               {/* Component Code (Free text) */}
               <div className="col-md-6">
                 <label>Component Code</label>
-                <input type="text" className="form-control" />
+                <input type="text" className="form-control" value={addComponentData.componentCode} onChange={e => setAddComponentData({ ...addComponentData, componentCode: e.target.value })} />
+                {addComponentErrors.componentCode && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.componentCode}</div>}
               </div>
               {/* Component Description (Free text) */}
               <div className="col-md-6">
                 <label>Component Description</label>
-                <input type="text" className="form-control" />
+                <input type="text" className="form-control" value={addComponentData.componentDescription} onChange={e => setAddComponentData({ ...addComponentData, componentDescription: e.target.value })} />
+                {addComponentErrors.componentDescription && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.componentDescription}</div>}
               </div>
               {/* Component validity date - From (Date) */}
               <div className="col-md-6">
                 <label>Component validity date - From</label>
-                <input type="date" className="form-control" />
+                <input type="date" className="form-control" value={addComponentData.validityFrom} onChange={e => setAddComponentData({ ...addComponentData, validityFrom: e.target.value })} />
+                {addComponentErrors.validityFrom && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.validityFrom}</div>}
               </div>
               {/* Component validity date - To (Date) */}
               <div className="col-md-6">
                 <label>Component validity date - To</label>
-                <input type="date" className="form-control" />
+                <input type="date" className="form-control" value={addComponentData.validityTo} onChange={e => setAddComponentData({ ...addComponentData, validityTo: e.target.value })} />
+                {addComponentErrors.validityTo && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.validityTo}</div>}
               </div>
               {/* Component Category (Drop-down list) */}
               <div className="col-md-6">
@@ -1024,7 +1191,8 @@ const CmSkuDetail: React.FC = () => {
               {/* Component Quantity (Numeric) */}
               <div className="col-md-6">
                 <label>Component Quantity</label>
-                <input type="number" className="form-control" />
+                <input type="number" className="form-control" value={addComponentData.componentQuantity} onChange={e => setAddComponentData({ ...addComponentData, componentQuantity: e.target.value })} />
+                {addComponentErrors.componentQuantity && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.componentQuantity}</div>}
               </div>
               {/* Component Unit of Measure (Drop-down list) */}
               <div className="col-md-6">
@@ -1038,17 +1206,20 @@ const CmSkuDetail: React.FC = () => {
               {/* Component Base Quantity (Numeric) */}
               <div className="col-md-6">
                 <label>Component Base Quantity</label>
-                <input type="number" className="form-control" />
+                <input type="number" className="form-control" value={addComponentData.componentBaseQuantity} onChange={e => setAddComponentData({ ...addComponentData, componentBaseQuantity: e.target.value })} />
+                {addComponentErrors.componentBaseQuantity && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.componentBaseQuantity}</div>}
               </div>
               {/* Component Base Unit of Measure (Default to Each) */}
               <div className="col-md-6">
                 <label>Component Base Unit of Measure</label>
-                <input type="text" className="form-control" placeholder="Each" />
+                <input type="text" className="form-control" value={addComponentData.componentBaseUnitOfMeasure} onChange={e => setAddComponentData({ ...addComponentData, componentBaseUnitOfMeasure: e.target.value })} placeholder="Each" />
+                {addComponentErrors.componentBaseUnitOfMeasure && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.componentBaseUnitOfMeasure}</div>}
               </div>
               {/* %w/w (Percentage) */}
               <div className="col-md-6">
                 <label>%w/w</label>
-                <input type="number" className="form-control" placeholder="Percentage" />
+                <input type="number" className="form-control" value={addComponentData.wW} onChange={e => setAddComponentData({ ...addComponentData, wW: e.target.value })} placeholder="Percentage" />
+                {addComponentErrors.wW && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.wW}</div>}
               </div>
               {/* Component Packaging Type (Drop-down list) */}
               <div className="col-md-6">
@@ -1071,7 +1242,8 @@ const CmSkuDetail: React.FC = () => {
               {/* Component Unit Weight (Numeric) */}
               <div className="col-md-6">
                 <label>Component Unit Weight</label>
-                <input type="number" className="form-control" />
+                <input type="number" className="form-control" value={addComponentData.componentUnitWeight} onChange={e => setAddComponentData({ ...addComponentData, componentUnitWeight: e.target.value })} />
+                {addComponentErrors.componentUnitWeight && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.componentUnitWeight}</div>}
               </div>
               {/* Component Weight Unit of Measure (Drop-down list) */}
               <div className="col-md-6">
@@ -1085,32 +1257,38 @@ const CmSkuDetail: React.FC = () => {
               {/* % Mechanical Post-Consumer Recycled Content (inc. Chemical) (Percentage) */}
               <div className="col-md-6">
                 <label>% Mechanical Post-Consumer Recycled Content (inc. Chemical)</label>
-                <input type="number" className="form-control" placeholder="Percentage" />
+                <input type="number" className="form-control" value={addComponentData.percentPostConsumer} onChange={e => setAddComponentData({ ...addComponentData, percentPostConsumer: e.target.value })} placeholder="Percentage" />
+                {addComponentErrors.percentPostConsumer && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.percentPostConsumer}</div>}
               </div>
               {/* % Mechanical Post-Industrial Recycled Content (Percentage) */}
               <div className="col-md-6">
                 <label>% Mechanical Post-Industrial Recycled Content</label>
-                <input type="number" className="form-control" placeholder="Percentage" />
+                <input type="number" className="form-control" value={addComponentData.percentPostIndustrial} onChange={e => setAddComponentData({ ...addComponentData, percentPostIndustrial: e.target.value })} placeholder="Percentage" />
+                {addComponentErrors.percentPostIndustrial && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.percentPostIndustrial}</div>}
               </div>
               {/* % Chemical Recycled Content (Percentage) */}
               <div className="col-md-6">
                 <label>% Chemical Recycled Content</label>
-                <input type="number" className="form-control" placeholder="Percentage" />
+                <input type="number" className="form-control" value={addComponentData.percentChemical} onChange={e => setAddComponentData({ ...addComponentData, percentChemical: e.target.value })} placeholder="Percentage" />
+                {addComponentErrors.percentChemical && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.percentChemical}</div>}
               </div>
               {/* % Bio-sourced? (Percentage) */}
               <div className="col-md-6">
                 <label>% Bio-sourced?</label>
-                <input type="number" className="form-control" placeholder="Percentage" />
+                <input type="number" className="form-control" value={addComponentData.percentBioSourced} onChange={e => setAddComponentData({ ...addComponentData, percentBioSourced: e.target.value })} placeholder="Percentage" />
+                {addComponentErrors.percentBioSourced && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.percentBioSourced}</div>}
               </div>
               {/* Material structure - multimaterials only (with % wt) (Free text) */}
               <div className="col-md-6">
                 <label>Material structure - multimaterials only (with % wt)</label>
-                <input type="text" className="form-control" />
+                <input type="text" className="form-control" value={addComponentData.materialStructure} onChange={e => setAddComponentData({ ...addComponentData, materialStructure: e.target.value })} />
+                {addComponentErrors.materialStructure && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.materialStructure}</div>}
               </div>
               {/* Component packaging colour / opacity (Free text) */}
               <div className="col-md-6">
                 <label>Component packaging colour / opacity</label>
-                <input type="text" className="form-control" />
+                <input type="text" className="form-control" value={addComponentData.packagingColour} onChange={e => setAddComponentData({ ...addComponentData, packagingColour: e.target.value })} />
+                {addComponentErrors.packagingColour && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.packagingColour}</div>}
               </div>
               {/* Component packaging level (Drop-down list) */}
               <div className="col-md-6">
@@ -1124,17 +1302,74 @@ const CmSkuDetail: React.FC = () => {
               {/* Component dimensions (3D - LxWxH, 2D - LxW) (Free text) */}
               <div className="col-md-6">
                 <label>Component dimensions (3D - LxWxH, 2D - LxW)</label>
-                <input type="text" className="form-control" />
+                <input type="text" className="form-control" value={addComponentData.componentDimensions} onChange={e => setAddComponentData({ ...addComponentData, componentDimensions: e.target.value })} />
+                {addComponentErrors.componentDimensions && <div style={{ color: 'red', fontSize: 13 }}>{addComponentErrors.componentDimensions}</div>}
               </div>
             </div>
           </div>
         </div>
+              <div className="col-12" style={{ marginTop: 24 }}>
+  <h5 style={{ fontWeight: 700, color: '#000', marginBottom: 12, display: 'inline-block' }}>Upload Evidence</h5>
+  <input
+    type="checkbox"
+    id="select-for-all-checkbox"
+    checked={selectForAll}
+    onChange={e => {
+      setSelectForAll(e.target.checked);
+      if (e.target.checked) {
+        // If any field has files, sync all to the first non-empty
+        const firstWithFiles = evidenceFiles.find(files => files.length > 0) || [];
+        setEvidenceFiles([firstWithFiles, firstWithFiles, firstWithFiles, firstWithFiles]);
+      }
+    }}
+    style={{ marginLeft: 16, verticalAlign: 'middle' }}
+  />
+  <label htmlFor="select-for-all-checkbox" style={{ marginLeft: 8, fontWeight: 500, color: '#000' }}>Select for All</label>
+  <div className="row g-3" style={{ marginTop: 8 }}>
+    {[1,2,3,4].map(idx => (
+      <div className="col-md-6" key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <label style={{ marginBottom: 0, minWidth: 160 }}>{`Evidence Category ${idx}`}</label>
+        <input
+          type="file"
+          className="form-control"
+          multiple
+          style={{ flex: 1 }}
+          value={undefined} // allow re-upload
+          onChange={e => {
+            const files = Array.from(e.target.files || []);
+            if (selectForAll) {
+              if (files.length === 0) {
+                setEvidenceFiles([[], [], [], []]);
+              } else {
+                setEvidenceFiles([files, files, files, files]);
+              }
+            } else {
+              const newFiles = [...evidenceFiles];
+              newFiles[idx-1] = files;
+              setEvidenceFiles(newFiles);
+            }
+          }}
+        />
+        {/* Show selected files */}
+        <div style={{ marginLeft: 8, flex: 1 }}>
+          {evidenceFiles[idx-1] && evidenceFiles[idx-1].length > 0 && (
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: 12 }}>
+              {evidenceFiles[idx-1].map((file, i) => (
+                <li key={i}>{file.name}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
               <div className="modal-footer" style={{ background: '#fff', borderTop: '2px solid #000', display: 'flex', justifyContent: 'flex-end' }}>
                 <button
                   type="button"
                   className="btn"
                   style={{ backgroundColor: 'rgb(48, 234, 3)', border: 'none', color: '#000', minWidth: 100, fontWeight: 600 }}
-                  onClick={() => setShowAddComponentModal(false)}
+                  onClick={handleAddComponentSave}
                 >
                   Save
                 </button>
